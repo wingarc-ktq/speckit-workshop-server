@@ -1,0 +1,9 @@
+package: gen
+output: api/gen/server.gen.go
+generate:
+  models: true
+  echo-server: true
+  embedded-spec: true
+  strict-server: true
+output-options:
+  skip-prune: false

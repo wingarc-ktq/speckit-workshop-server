@@ -1,0 +1,54 @@
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+bin/
+/dist/
+/tmp/
+
+# Environments
+.env
+.env.local
+.env.*.local
+
+# JWT 開発用鍵 (ローカルで `make keys` で生成。秘密鍵は決してコミットしない)
+/keys/*.pem
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/mcp.json
+!.vscode/settings.json
+*.swp
+*.swo
+.DS_Store
+
+# Coverage
+coverage.out
+coverage.html
+*.coverprofile
+
+# OAPI generated (regenerated via `make gen`)
+# Keep generated files committed for clarity in the workshop
+# services/*/api/gen/*.go
+
+# Schemathesis / Hurl outputs
+api-tests/**/report/
+api-tests/**/results.json
+api-tests/.cassettes/
+# make install で作る Python 仮想環境 / property-based テストの Hypothesis DB / schemathesis の状態
+api-tests/**/.venv/
+api-tests/**/.hypothesis/
+api-tests/**/.schemathesis/
+
+# Docker volumes
+.postgres-data/
+.storage-data/
+
+# Spec Kit (統合カタログのキャッシュ。CLI が自動生成するローカル専用ファイル)
+.specify/integrations/.cache/

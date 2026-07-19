@@ -1,0 +1,60 @@
+name: API Tests
+
+# 重い E2E（compose 起動 + ファジング）なので手動実行のみ。Actions タブ / gh CLI から起動する。
+on:
+  workflow_dispatch:
+
+# 同一ブランチで新しい push があれば、実行中のジョブをキャンセルする。
+concurrency:
+  group: api-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Hurl
+        run: |
+          # 最新リリースの .deb を取得し、依存解決のため apt 経由で入れる (jq は runner に同梱)。
+          tag=$(curl -sSL https://api.github.com/repos/Orange-OpenSource/hurl/releases/latest | jq -r .tag_name)
+          curl -sSLO "https://github.com/Orange-OpenSource/hurl/releases/download/${tag}/hurl_${tag}_amd64.deb"
+          sudo apt-get install -y "./hurl_${tag}_amd64.deb"
+
+      - name: Start services
+        run: |
+          cp .env.sample .env
+          make up   # make keys で RS256 鍵を生成し、postgres + auth を起動する
+          # readiness 待ち (運用エンドポイントは /api/v1 の外)。
+          for i in {1..30}; do
+            curl -fs http://localhost:8081/readyz && break
+            sleep 2
+          done
+          curl -fs http://localhost:8081/readyz   # ループが空振りしたらここで step を失敗させる
+
+      - name: Schemathesis (auth)
+        run: |
+          cd api-tests/schemathesis
+          make install    # .venv に隔離インストール
+          make run-auth    # 内部で register-user → get-token → 検証まで走る
+
+      - name: Hurl (auth)
+        run: cd api-tests/hurl && make run
+
+      - name: Dump auth logs on failure
+        if: failure()
+        run: docker compose logs auth
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-reports
+          path: |
+            api-tests/schemathesis/report/
+            api-tests/hurl/report/

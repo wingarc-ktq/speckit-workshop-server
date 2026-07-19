@@ -1,0 +1,40 @@
+name: Go Tests
+
+# lint / unit は毎 PR。重い integration は Actions タブ / gh CLI からの手動実行のみ。
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: go-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - run: make -C services/auth lint   # gofmt 差分チェック + go vet
+
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - run: make test-unit   # go test -short -race ./...（mock 使用・Docker 不要）
+
+  integration:
+    # 手動実行時のみ。PR では skip される（testcontainers-go が Postgres を起動するため遅い）。
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - run: make test-integration   # go test -race -tags=integration ./...（Docker は runner 同梱）

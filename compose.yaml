@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: speckit-workshop-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-workshop}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-workshop}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ./.postgres-data:/var/lib/postgresql/data
+      - ./migrations/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-workshop}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  auth:
+    build:
+      # 共有ライブラリ packages/authjwt を含めるためコンテキストはリポジトリ直下.
+      context: .
+      dockerfile: services/auth/Dockerfile
+    container_name: speckit-workshop-auth
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AUTH_SERVICE_PORT: 8081
+      AUTH_DATABASE_URL: postgres://workshop:workshop@postgres:5432/auth?sslmode=disable
+      # JWT は RS256. 秘密鍵で署名し、公開鍵で検証する (keys/ を /keys にマウント).
+      AUTH_JWT_PRIVATE_KEY_PATH: /keys/jwt_dev_private.pem
+      AUTH_JWT_PUBLIC_KEY_PATH: /keys/jwt_dev_public.pem
+      AUTH_JWT_TTL_SECONDS: 3600
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./keys:/keys:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # files サービスは未実装のため compose 未登録。auth を参考に作成後、ここに追加する。

@@ -1,0 +1,6 @@
+{
+  "ai": "cline",
+  "integration": "cline",
+  "script": "sh",
+  "speckit_version": "0.12.4"
+}
