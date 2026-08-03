@@ -212,7 +212,10 @@ speckit-workshop-server/
 - [ ] Docker / Docker Compose
 - [ ] Python 3.11 以上 (Day 3 用)
 - [ ] [Hurl](https://hurl.dev/docs/installation.html) (Day 3 用)
-- [ ] GitHub Copilot または Claude Code が使える環境
+- [ ] 下記のいずれかのAIツールを利用可能
+  - GitHub Copilot
+  - Claude Code
+  - Gemini Cli (Antigravity Cli)
 - [ ] このリポジトリをクローン済み
 - [ ] `cp .env.sample .env` 済み
 - [ ] `make tools` で oapi-codegen, sqlc, migrate をインストール済み
