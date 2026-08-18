@@ -1,0 +1,707 @@
+openapi: 3.0.3
+info:
+  title: Files Service API
+  version: 1.0.0
+  description: |
+    チームで文書を共有・整理するためのファイル管理システムを提供する Files マイクロサービス API。
+
+    **Features:**
+    - ファイルアップロード (最大 10MB)
+    - ファイル一覧取得と検索（キーワード・タグフィルタ）
+    - ファイル詳細取得とダウンロード
+    - ファイルメタデータ編集（ファイル名、説明、タグ関連付け）
+    - ファイル個別削除および一括削除
+    - タグ管理（作成、一覧取得、更新、削除、重複防止、色定義）
+
+servers:
+  - url: http://localhost:8082/api/v1
+    description: Development server
+
+tags:
+  - name: files
+    description: ファイル管理
+  - name: tags
+    description: タグ管理
+
+paths:
+  /files:
+    post:
+      summary: ファイルアップロード
+      operationId: uploadFile
+      tags:
+        - files
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: アップロードするファイルのバイナリデータ (最大10MB)
+                description:
+                  type: string
+                  maxLength: 500
+                  description: ファイルの説明文
+                  example: "2026年度の事業計画書"
+      responses:
+        "201":
+          description: アップロード成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileResponse"
+        "400":
+          description: 不正なリクエスト (サイズ超過、バリデーションエラーなど)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      summary: ファイル一覧取得と検索
+      operationId: listFiles
+      tags:
+        - files
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: ページ番号 (デフォルト 1)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            example: 1
+        - name: limit
+          in: query
+          description: 1ページあたりの最大取得件数 (最大100, デフォルト 20)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+        - name: q
+          in: query
+          description: ファイル名に対する部分一致キーワード検索
+          required: false
+          schema:
+            type: string
+            example: "請求書"
+        - name: tagIds
+          in: query
+          description: タグIDによる絞り込み (複数指定可)
+          required: false
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+            example: ["550e8400-e29b-41d4-a716-446655440000"]
+      responses:
+        "200":
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileListResponse"
+        "400":
+          description: 不正なパラメータ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /files/batch-delete:
+    post:
+      summary: ファイル一括削除
+      operationId: batchDeleteFiles
+      tags:
+        - files
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchDeleteRequest"
+      responses:
+        "204":
+          description: 削除成功 (レスポンスボディなし)
+        "400":
+          description: 不正なリクエスト (空のID配列など)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /files/{fileId}:
+    get:
+      summary: ファイル詳細取得
+      operationId: getFile
+      tags:
+        - files
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fileId
+          in: path
+          description: ファイルID
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+      responses:
+        "200":
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileResponse"
+        "401":
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: ファイルが見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    patch:
+      summary: ファイルメタデータ編集
+      operationId: updateFile
+      tags:
+        - files
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fileId
+          in: path
+          description: ファイルID
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFileRequest"
+      responses:
+        "200":
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileResponse"
+        "400":
+          description: 不正なリクエスト (バリデーションエラー)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: ファイルが見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      summary: ファイル削除
+      operationId: deleteFile
+      tags:
+        - files
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fileId
+          in: path
+          description: ファイルID
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+      responses:
+        "204":
+          description: 削除成功 (レスポンスボディなし)
+        "401":
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: ファイルが見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /files/{fileId}/download:
+    get:
+      summary: ファイルダウンロード
+      operationId: downloadFile
+      tags:
+        - files
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fileId
+          in: path
+          description: ファイルID
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+      responses:
+        "200":
+          description: ダウンロード成功。ファイルバイナリを返します。
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="report.pdf"'
+              description: ファイルダウンロード用のヘッダー
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: ファイルが見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /tags:
+    post:
+      summary: タグ作成
+      operationId: createTag
+      tags:
+        - tags
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTagRequest"
+      responses:
+        "201":
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagResponse"
+        "400":
+          description: 不正なリクエスト (色エラーなど)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: タグ名が既に存在します
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      summary: タグ一覧取得
+      operationId: listTags
+      tags:
+        - tags
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagListResponse"
+        "401":
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /tags/{tagId}:
+    patch:
+      summary: タグ情報更新
+      operationId: updateTag
+      tags:
+        - tags
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tagId
+          in: path
+          description: タグID
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440002"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTagRequest"
+      responses:
+        "200":
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagResponse"
+        "400":
+          description: 不正なリクエスト (バリデーションエラー)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: タグが見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: 更新後のタグ名が既に存在します
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      summary: タグ削除
+      operationId: deleteTag
+      tags:
+        - tags
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tagId
+          in: path
+          description: タグID
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440002"
+      responses:
+        "204":
+          description: 削除成功 (レスポンスボディなし)
+        "401":
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: タグが見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    File:
+      type: object
+      required:
+        - id
+        - name
+        - size
+        - mimeType
+        - uploadedAt
+        - downloadUrl
+        - tagIds
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        name:
+          type: string
+          maxLength: 255
+          example: "report.pdf"
+        size:
+          type: integer
+          format: int64
+          description: ファイルサイズ (バイト)
+          example: 1048576
+        mimeType:
+          type: string
+          example: "application/pdf"
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+          example: "2026年度の事業計画書"
+        uploadedAt:
+          type: string
+          format: date-time
+          example: "2026-08-18T12:00:00Z"
+        downloadUrl:
+          type: string
+          example: "/api/v1/files/550e8400-e29b-41d4-a716-446655440001/download"
+        tagIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          example: ["550e8400-e29b-41d4-a716-446655440002"]
+
+    FileResponse:
+      type: object
+      required:
+        - file
+      properties:
+        file:
+          $ref: "#/components/schemas/File"
+
+    FileListResponse:
+      type: object
+      required:
+        - files
+        - total
+        - page
+        - limit
+      properties:
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/File"
+        total:
+          type: integer
+          description: 総件数
+          example: 25
+        page:
+          type: integer
+          description: 現在のページ番号
+          example: 1
+        limit:
+          type: integer
+          description: 1ページあたりの最大件数
+          example: 20
+
+    UpdateFileRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: "report_v2.pdf"
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+          example: "修正版の2026年度の事業計画書"
+        tagIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          example: ["550e8400-e29b-41d4-a716-446655440002", "550e8400-e29b-41d4-a716-446655440003"]
+
+    BatchDeleteRequest:
+      type: object
+      required:
+        - fileIds
+      properties:
+        fileIds:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+          example: ["550e8400-e29b-41d4-a716-446655440001", "550e8400-e29b-41d4-a716-446655440004"]
+
+    Tag:
+      type: object
+      required:
+        - id
+        - name
+        - color
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440002"
+        name:
+          type: string
+          maxLength: 50
+          example: "重要"
+        color:
+          type: string
+          enum:
+            - blue
+            - red
+            - yellow
+            - green
+            - purple
+            - orange
+            - gray
+          example: "red"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-08-18T10:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-08-18T10:00:00Z"
+
+    TagResponse:
+      type: object
+      required:
+        - tag
+      properties:
+        tag:
+          $ref: "#/components/schemas/Tag"
+
+    TagListResponse:
+      type: object
+      required:
+        - tags
+      properties:
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tag"
+
+    CreateTagRequest:
+      type: object
+      required:
+        - name
+        - color
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: "重要"
+        color:
+          type: string
+          enum:
+            - blue
+            - red
+            - yellow
+            - green
+            - purple
+            - orange
+            - gray
+          example: "red"
+
+    UpdateTagRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: "最重要"
+        color:
+          type: string
+          enum:
+            - blue
+            - red
+            - yellow
+            - green
+            - purple
+            - orange
+            - gray
+          example: "orange"
+
+    ErrorResponse:
+      type: object
+      required:
+        - message
+        - code
+      properties:
+        message:
+          type: string
+          example: "エラーが発生しました。"
+        code:
+          type: string
+          example: "BAD_REQUEST"
