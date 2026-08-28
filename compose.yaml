@@ -44,4 +44,34 @@ services:
       retries: 5
       start_period: 5s
 
-  # files サービスは未実装のため compose 未登録。auth を参考に作成後、ここに追加する。
+  files:
+    build:
+      # 共有ライブラリ packages/authjwt を含めるためコンテキストはリポジトリ直下.
+      context: .
+      dockerfile: services/files/Dockerfile
+    container_name: speckit-workshop-files
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      FILES_SERVICE_PORT: 8082
+      # files データベースは migrations/init/00_create_databases.sql で作成済み.
+      FILES_DATABASE_URL: postgres://workshop:workshop@postgres:5432/files?sslmode=disable
+      # Files は JWT の検証のみ行う（秘密鍵は持たない、Constitution VII）。
+      # 公開鍵は auth と共通（同じ keys/ ボリュームをマウント）.
+      FILES_JWT_PUBLIC_KEY_PATH: /keys/jwt_dev_public.pem
+      # アップロードされたファイル本体の保存先（コンテナ内パス）.
+      FILES_STORAGE_DIR: /data
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./keys:/keys:ro
+      # ファイル本体はコンテナの再作成をまたいで残す必要があるため永続ボリュームにする
+      # (.postgres-data と同じ命名規則。.gitignore 済み).
+      - ./.storage-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s

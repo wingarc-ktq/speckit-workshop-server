@@ -145,16 +145,13 @@ paths:
                     type: string
                     format: uuid
                   example: ["9c858901-8a57-4791-81fe-4c455b099bc9"]
-            encoding:
-              file:
-                # spec.md Edge Cases「対応ファイル形式は MIME タイプで判定
-                # （PDF、Word、Excel、画像等）」に基づく受け入れ形式の指定
-                contentType: >-
-                  application/pdf,
-                  application/vnd.openxmlformats-officedocument.wordprocessingml.document,
-                  application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,
-                  image/jpeg,
-                  image/png
+            # encoding.file.contentType で MIME タイプのホワイトリスト（spec.md Edge Cases
+            # 「対応ファイル形式は MIME タイプで判定（PDF、Word、Excel、画像等）」）を
+            # カンマ区切りで列挙する案もあったが、実装で使用している kin-openapi v0.140.0 の
+            # openapi3filter は contentType を単一の文字列として完全一致でしか比較しないため
+            # （カンマ区切りリストとして解釈しない）、指定するとどんな MIME タイプを送っても
+            # 常に 400 VALIDATION_ERROR になってしまう。MIME タイプ判定は Edge Cases であり
+            # FR で必須要件化されていないため、OpenAPI 層での制約は設けない。
       responses:
         "201":
           description: 登録成功

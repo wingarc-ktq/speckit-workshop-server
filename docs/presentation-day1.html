@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>発表資料 — OpenAPI 設計</title>
+<style>
+  :root{
+    --bg:#FFFFFF; --tx:#22262C; --mu:#6B7280; --acc:#2C6E9B;
+    --soft:#EEF4F9; --line:#E4E7EB;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:#F2F3F5;color:var(--tx);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif;
+    line-height:1.75;
+  }
+  .slide{
+    width:100vw;height:100vh;background:var(--bg);
+    padding:8vh 8vw;display:none;flex-direction:column;position:relative;
+  }
+  .slide.on{display:flex}
+  h1{font-size:clamp(26px,3.4vw,44px);font-weight:700;line-height:1.35;letter-spacing:-.01em}
+  .sub{font-size:clamp(13px,1.15vw,17px);color:var(--mu);margin-top:12px}
+  .fill{flex:1;display:flex;flex-direction:column;justify-content:center;gap:clamp(18px,3vh,40px)}
+  table{width:100%;border-collapse:collapse;font-size:clamp(12px,1.15vw,17px)}
+  td{padding:clamp(8px,1.1vh,14px) 0;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td.l{width:42%;font-weight:600;padding-right:20px}
+  td.r{color:var(--mu)}
+  code{font-family:"SFMono-Regular",Consolas,monospace;color:var(--acc);font-size:.94em}
+  .hl{color:var(--acc);font-weight:700}
+  .big{font-size:clamp(17px,1.9vw,28px);font-weight:700;line-height:1.5}
+  .cap{font-size:clamp(12px,1.05vw,16px);color:var(--mu);margin-top:8px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:clamp(20px,3vw,48px)}
+  .box{background:var(--soft);border-radius:12px;padding:clamp(16px,2vw,26px)}
+  .pg{position:absolute;right:8vw;bottom:4vh;font-size:12px;color:#C4C8CE}
+  .nav{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);display:flex;gap:8px;z-index:9}
+  .nav button{
+    background:#fff;color:var(--mu);border:1px solid var(--line);
+    border-radius:7px;padding:5px 13px;font-size:13px;cursor:pointer;font-family:inherit;
+  }
+  .nav button:hover{color:var(--tx)}
+  @media print{
+    .nav{display:none}
+    .slide{display:flex!important;page-break-after:always;width:100%;height:100vh}
+    @page{size:landscape}
+  }
+</style>
+</head>
+<body>
+
+<section class="slide on">
+  <h1>実装の前に「約束」を決める</h1>
+  <p class="sub">OpenAPI 設計 — 書いたのは 1 ファイル。Go のコードは 1 行も書いていない</p>
+
+  <div class="fill">
+    <table>
+      <tr><td class="l"><code>POST /files</code></td><td class="r">アップロード</td></tr>
+      <tr><td class="l"><code>GET /files</code></td><td class="r">一覧・検索・タグ絞り込み</td></tr>
+      <tr><td class="l"><code>GET /files/{id}</code></td><td class="r">詳細取得</td></tr>
+      <tr><td class="l"><code>GET /files/{id}/content</code></td><td class="r">本体ダウンロード</td></tr>
+    </table>
+
+    <div>
+      <p class="big">設計図から実装の枠が自動生成される</p>
+      <p class="cap">手で書くと設計図とズレる。生成なら<span class="hl">ズレる余地がない</span></p>
+    </div>
+  </div>
+  <div class="pg">1 / 3</div>
+</section>
+
+<section class="slide">
+  <h1>1 行ずつに「出典」を持たせる</h1>
+  <p class="sub">書いた記述すべてに、どこから引いてきたかの根拠がある状態にした</p>
+
+  <div class="fill">
+    <table>
+      <tr><td class="l"><code>maxLength: 500</code></td><td class="r">仕様書「説明文は最大 500 文字」</td></tr>
+      <tr><td class="l"><code>maximum: 10485760</code></td><td class="r">仕様書「最大 10MB」</td></tr>
+      <tr><td class="l"><code>maxLength: 255</code></td><td class="r">DB 設計の <code>VARCHAR(255)</code></td></tr>
+      <tr><td class="l">エラーの形</td><td class="r">既存の Auth サービス</td></tr>
+      <tr><td class="l">URL を <code>/content</code> に</td><td class="r">REST の原則 ← <span class="hl">ここだけが自分の判断</span></td></tr>
+    </table>
+
+    <div>
+      <p class="big">出典がなかった <code style="font-size:1em">sort</code> は削除した</p>
+      <p class="cap">「あったほうが便利」で追加していたが、仕様書に要件がなく、使う側の画面も呼んでいなかった</p>
+    </div>
+  </div>
+  <div class="pg">2 / 3</div>
+</section>
+
+<section class="slide">
+  <h1>正しく設計しても、繋がらない</h1>
+  <p class="sub">前に作った画面の設計図と並べて比べた結果</p>
+
+  <div class="fill">
+    <table>
+      <tr><td class="l">ダウンロードの URL が違う</td><td class="r">画面は <code>/download</code>／サーバーは <code>/content</code> → <span class="hl">404</span></td></tr>
+      <tr><td class="l">タグ機能の窓口が無い</td><td class="r">画面は呼ぶが、サーバー側は未設計</td></tr>
+      <tr><td class="l">ID の形式が違う</td><td class="r"><code>file_abc123</code> 形式 と UUID</td></tr>
+    </table>
+
+    <div class="grid2">
+      <div class="box">
+        <p class="big">API は正しさの競争ではなく<span class="hl">合意</span></p>
+        <p class="cap"><code>/content</code> は原則に沿った判断。それでも合意がなければ繋がらない</p>
+      </div>
+      <div class="box">
+        <p class="big">資料と仕様書が食い違っていた</p>
+        <p class="cap">優先度の表が別教材からのコピーで、必須機能をひとつ落としかけた</p>
+      </div>
+    </div>
+  </div>
+  <div class="pg">3 / 3</div>
+</section>
+
+<div class="nav">
+  <button onclick="go(-1)">← 前</button>
+  <button onclick="go(1)">次 →</button>
+</div>
+
+<script>
+  let i = 0;
+  const all = document.querySelectorAll('.slide');
+  function go(d){
+    all[i].classList.remove('on');
+    i = Math.min(all.length - 1, Math.max(0, i + d));
+    all[i].classList.add('on');
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(-1); }
+  });
+</script>
+</body>
+</html>

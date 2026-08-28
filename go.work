@@ -3,4 +3,5 @@ go 1.26
 use (
 	./packages/authjwt
 	./services/auth
+	./services/files
 )

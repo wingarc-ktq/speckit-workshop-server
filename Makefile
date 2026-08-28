@@ -17,9 +17,10 @@ $(KEYS_DIR)/jwt_dev_private.pem:
 	@echo "✅ 開発用 JWT 鍵を $(KEYS_DIR)/ に生成しました (DEV ONLY / git 管理しない)"
 
 # ====== Docker Compose ======
-up: keys ## サービス全体を起動 (postgres + auth)
+up: keys ## サービス全体を起動 (postgres + auth + files)
 	docker compose up -d --build
 	@echo "Auth:  http://localhost:8081"
+	@echo "Files: http://localhost:8082"
 
 up-db: ## PostgreSQLのみ起動 (ローカル開発用)
 	docker compose up -d postgres
@@ -39,19 +40,24 @@ tools: ## 開発ツールのインストール (oapi-codegen, sqlc, migrate)
 	go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 	go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
-gen: gen-auth ## OpenAPIとSQLからGoコードを生成
+gen: gen-auth gen-files ## OpenAPIとSQLからGoコードを生成
 
 gen-auth: ## authサービスのコード生成
 	$(MAKE) -C services/auth gen
+
+gen-files: ## filesサービスのコード生成
+	$(MAKE) -C services/files gen
 
 # ====== Tests ======
 test: test-unit test-integration ## 全テスト実行
 
 test-unit: ## 単体テスト実行
 	$(MAKE) -C services/auth test-unit
+	$(MAKE) -C services/files test-unit
 
 test-integration: ## 統合テスト実行 (testcontainers-go)
 	$(MAKE) -C services/auth test-integration
+	$(MAKE) -C services/files test-integration
 
 # ====== API Tests ======
 api-test: schemathesis hurl ## APIテストをすべて実行
@@ -65,6 +71,8 @@ hurl: ## Hurl でシナリオベースのAPIテスト
 # ====== Lint / Format ======
 lint:
 	cd services/auth && go vet ./...
+	cd services/files && go vet ./...
 
 fmt:
 	cd services/auth && go fmt ./...
+	cd services/files && go fmt ./...
