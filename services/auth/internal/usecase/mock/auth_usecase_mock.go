@@ -23,6 +23,7 @@ import (
 type MockAuthUsecase struct {
 	ctrl     *gomock.Controller
 	recorder *MockAuthUsecaseMockRecorder
+	isgomock struct{}
 }
 
 // MockAuthUsecaseMockRecorder is the mock recorder for MockAuthUsecase.

@@ -22,6 +22,7 @@ import (
 type MockUserRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockUserRepositoryMockRecorder
+	isgomock struct{}
 }
 
 // MockUserRepositoryMockRecorder is the mock recorder for MockUserRepository.
@@ -89,6 +90,7 @@ func (mr *MockUserRepositoryMockRecorder) FindByID(ctx, id any) *gomock.Call {
 type MockPasswordHasher struct {
 	ctrl     *gomock.Controller
 	recorder *MockPasswordHasherMockRecorder
+	isgomock struct{}
 }
 
 // MockPasswordHasherMockRecorder is the mock recorder for MockPasswordHasher.
@@ -141,6 +143,7 @@ func (mr *MockPasswordHasherMockRecorder) Hash(password any) *gomock.Call {
 type MockTokenIssuer struct {
 	ctrl     *gomock.Controller
 	recorder *MockTokenIssuerMockRecorder
+	isgomock struct{}
 }
 
 // MockTokenIssuerMockRecorder is the mock recorder for MockTokenIssuer.

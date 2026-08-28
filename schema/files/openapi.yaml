@@ -1,0 +1,412 @@
+openapi: 3.0.3
+info:
+  title: File Management Service API
+  version: 1.0.0
+  description: |
+    文書管理サービスのファイル管理 API（Spec Kit Workshop / Server 用）
+
+    **Features:**
+    - ファイルアップロード（multipart/form-data）
+    - ファイル一覧取得（ページネーション・キーワード検索・タグフィルタ）
+    - ファイル詳細取得
+    - ファイル本体のダウンロード
+
+    運用エンドポイント（`/healthz`・`/readyz`）は本契約の対象外。
+servers:
+  - url: http://localhost:8082/api/v1
+    description: Development server
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: files
+    description: ファイル管理
+
+paths:
+  /files:
+    get:
+      summary: ファイル一覧取得
+      description: |
+        ファイル一覧をページネーション付きで返す。
+        `search` でファイル名の部分一致検索、`tagIds` でタグによる絞り込みができる。
+      operationId: getFiles
+      tags:
+        - files
+      parameters:
+        - name: page
+          in: query
+          description: ページ番号（1 始まり）
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            example: 1
+        - name: limit
+          in: query
+          description: 1 ページあたりの件数
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+        - name: search
+          in: query
+          description: ファイル名の部分一致検索キーワード
+          required: false
+          schema:
+            type: string
+            maxLength: 255
+            example: "請求書"
+        - name: tagIds
+          in: query
+          description: 絞り込むタグ ID（複数指定可）
+          required: false
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+        - name: sort
+          in: query
+          description: |
+            並び順。先頭の `-` は降順を表す。
+            省略時は `-uploadedAt`（新しい順）。
+          required: false
+          schema:
+            type: string
+            enum:
+              - name
+              - -name
+              - uploadedAt
+              - -uploadedAt
+              - size
+              - -size
+            default: -uploadedAt
+            example: "-uploadedAt"
+      responses:
+        "200":
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileListResponse"
+              example:
+                files:
+                  - id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                    name: "田中商事_請求書.pdf"
+                    size: 204800
+                    mimeType: "application/pdf"
+                    description: "2026年8月分の請求書"
+                    uploadedAt: "2026-08-28T10:30:00Z"
+                    downloadUrl: "/api/v1/files/3fa85f64-5717-4562-b3fc-2c963f66afa6/content"
+                    tagIds: ["9c858901-8a57-4791-81fe-4c455b099bc9"]
+                total: 1
+                page: 1
+                limit: 20
+        "400":
+          description: 不正なリクエストパラメータ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                message: "ページ番号は 1 以上で指定してください"
+                code: "INVALID_PARAMETER"
+        "401":
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                message: "認証が必要です"
+                code: "UNAUTHORIZED"
+
+    post:
+      summary: ファイルアップロード
+      description: |
+        ファイルと説明文を受け取り、システムに登録する。
+        1 ファイルあたり最大 10MB。超過時は 413 を返す。
+      operationId: uploadFile
+      tags:
+        - files
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: アップロードするファイル（最大 10MB）
+                description:
+                  type: string
+                  maxLength: 500
+                  description: ファイルの説明（任意）
+                  example: "2026年8月分の請求書"
+                tagIds:
+                  type: array
+                  description: 付与するタグの ID 一覧（任意）
+                  items:
+                    type: string
+                    format: uuid
+                  example: ["9c858901-8a57-4791-81fe-4c455b099bc9"]
+      responses:
+        "201":
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileResponse"
+              example:
+                file:
+                  id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                  name: "田中商事_請求書.pdf"
+                  size: 204800
+                  mimeType: "application/pdf"
+                  description: "2026年8月分の請求書"
+                  uploadedAt: "2026-08-28T10:30:00Z"
+                  downloadUrl: "/api/v1/files/3fa85f64-5717-4562-b3fc-2c963f66afa6/content"
+                  tagIds: []
+        "400":
+          description: 不正なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                message: "ファイルが指定されていません"
+                code: "INVALID_PARAMETER"
+        "401":
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                message: "認証が必要です"
+                code: "UNAUTHORIZED"
+        "413":
+          description: ファイルサイズ超過
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                message: "ファイルサイズが上限を超えています（最大 10MB）"
+                code: "FILE_TOO_LARGE"
+
+  /files/{fileId}:
+    get:
+      summary: ファイル詳細取得
+      description: 指定したファイルのメタデータを返す。
+      operationId: getFile
+      tags:
+        - files
+      parameters:
+        - name: fileId
+          in: path
+          description: ファイル ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+      responses:
+        "200":
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileResponse"
+              example:
+                file:
+                  id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                  name: "田中商事_請求書.pdf"
+                  size: 204800
+                  mimeType: "application/pdf"
+                  description: "2026年8月分の請求書"
+                  uploadedAt: "2026-08-28T10:30:00Z"
+                  downloadUrl: "/api/v1/files/3fa85f64-5717-4562-b3fc-2c963f66afa6/content"
+                  tagIds: ["9c858901-8a57-4791-81fe-4c455b099bc9"]
+        "401":
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                message: "認証が必要です"
+                code: "UNAUTHORIZED"
+        "404":
+          description: ファイルが存在しない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                message: "ファイルが見つかりません"
+                code: "FILE_NOT_FOUND"
+
+  /files/{fileId}/content:
+    get:
+      summary: ファイル本体のダウンロード
+      description: |
+        指定したファイルのバイナリ本体を返す。
+        `Content-Type` はアップロード時の MIME タイプを反映する。
+      operationId: downloadFileContent
+      tags:
+        - files
+      parameters:
+        - name: fileId
+          in: path
+          description: ファイル ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+      responses:
+        "200":
+          description: ダウンロード成功
+          headers:
+            Content-Disposition:
+              description: ファイル名を含むダウンロード指示
+              schema:
+                type: string
+                example: 'attachment; filename="田中商事_請求書.pdf"'
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                message: "認証が必要です"
+                code: "UNAUTHORIZED"
+        "404":
+          description: ファイルが存在しない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                message: "ファイルが見つかりません"
+                code: "FILE_NOT_FOUND"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    FileInfo:
+      type: object
+      required:
+        - id
+        - name
+        - size
+        - mimeType
+        - uploadedAt
+        - downloadUrl
+        - tagIds
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        name:
+          type: string
+          maxLength: 255
+          example: "田中商事_請求書.pdf"
+        size:
+          type: integer
+          format: int64
+          description: ファイルサイズ（バイト）
+          example: 204800
+        mimeType:
+          type: string
+          example: "application/pdf"
+        description:
+          type: string
+          maxLength: 500
+          description: ファイルの説明（任意）
+          example: "2026年8月分の請求書"
+        uploadedAt:
+          type: string
+          format: date-time
+          example: "2026-08-28T10:30:00Z"
+        downloadUrl:
+          type: string
+          description: ファイル本体を取得する相対パス
+          example: "/api/v1/files/3fa85f64-5717-4562-b3fc-2c963f66afa6/content"
+        tagIds:
+          type: array
+          description: 付与されているタグの ID 一覧（タグ無しは空配列）
+          items:
+            type: string
+            format: uuid
+          example: ["9c858901-8a57-4791-81fe-4c455b099bc9"]
+
+    FileResponse:
+      type: object
+      required:
+        - file
+      properties:
+        file:
+          $ref: "#/components/schemas/FileInfo"
+
+    FileListResponse:
+      type: object
+      required:
+        - files
+        - total
+        - page
+        - limit
+      properties:
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/FileInfo"
+        total:
+          type: integer
+          description: 検索条件に一致する総件数
+          example: 25
+        page:
+          type: integer
+          description: 現在のページ番号
+          example: 1
+        limit:
+          type: integer
+          description: 1 ページあたりの件数
+          example: 20
+
+    ErrorResponse:
+      type: object
+      required:
+        - message
+        - code
+      properties:
+        message:
+          type: string
+          example: "ファイルが見つかりません"
+        code:
+          type: string
+          example: "FILE_NOT_FOUND"
