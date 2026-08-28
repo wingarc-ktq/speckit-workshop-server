@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>学習ノート — サーバー編 Day 1 OpenAPI 設計</title>
+<title>学習ノート — OpenAPI 設計</title>
 <style>
   :root{
     --bg:#FAF8F5; --card:#FFFFFF; --text:#33383F; --text-soft:#6B7280;
@@ -19,27 +19,19 @@
     line-height:1.9;font-size:16px;
   }
   .wrap{max-width:900px;margin:0 auto;padding:72px 32px 120px}
-  header.hero{margin-bottom:72px;padding-bottom:40px;border-bottom:2px solid var(--line)}
+  header.hero{margin-bottom:64px;padding-bottom:36px;border-bottom:2px solid var(--line)}
   .eyebrow{
     display:inline-block;font-size:13px;letter-spacing:.12em;color:var(--accent);
     background:var(--accent-soft);padding:6px 14px;border-radius:999px;font-weight:600;margin-bottom:24px;
   }
   h1{font-size:38px;line-height:1.4;margin:0 0 20px;letter-spacing:-.01em}
   .subtitle{font-size:18px;color:var(--text-soft);margin:0}
-  h2{font-size:27px;margin:80px 0 12px;padding-left:16px;border-left:5px solid var(--accent);line-height:1.5}
-  h2 .num{display:block;font-size:12px;letter-spacing:.14em;color:var(--accent);font-weight:700;margin-bottom:4px}
-  h3{font-size:20px;margin:44px 0 14px}
-  h4{font-size:16px;margin:28px 0 10px;color:var(--accent)}
+  h2{font-size:27px;margin:72px 0 12px;padding-left:16px;border-left:5px solid var(--accent);line-height:1.5}
+  h3{font-size:20px;margin:40px 0 14px}
   p{margin:0 0 20px}
   ul,ol{margin:0 0 20px;padding-left:26px}
   li{margin-bottom:10px}
-  .lead{font-size:17px;color:var(--text-soft);margin-bottom:36px}
-  .card{
-    background:var(--card);border-radius:14px;padding:40px 44px;margin:32px 0;
-    box-shadow:0 2px 4px rgba(50,45,40,.04),0 10px 30px rgba(50,45,40,.07);
-  }
-  .card>:first-child{margin-top:0}
-  .card>:last-child{margin-bottom:0}
+  .lead{font-size:17px;color:var(--text-soft);margin-bottom:32px}
   .analogy{
     background:var(--card);border-radius:14px;padding:36px 40px;margin:28px 0;
     box-shadow:0 2px 4px rgba(50,45,40,.04),0 10px 30px rgba(50,45,40,.07);
@@ -51,15 +43,8 @@
   th,td{text-align:left;padding:14px 16px;border-bottom:1px solid var(--line);vertical-align:top}
   th{background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:13px;letter-spacing:.06em}
   tr:last-child td{border-bottom:none}
-  td.real{width:32%;font-weight:600}
+  td.real{width:34%;font-weight:600}
   td.arrow{width:6%;text-align:center;color:var(--text-soft)}
-  .flow{display:flex;flex-direction:column;margin:32px 0}
-  .flow-step{background:var(--accent-soft);border-radius:10px;padding:18px 24px}
-  .flow-step .label{font-weight:700;color:var(--accent);font-size:15px;display:block}
-  .flow-step .desc{font-size:14px;color:var(--text-soft);display:block;margin-top:2px}
-  .flow-arrow{text-align:center;color:var(--accent);font-size:20px;line-height:1;padding:10px 0}
-  .flow-step.made{background:var(--good-soft)}
-  .flow-step.made .label{color:var(--good)}
   pre{
     background:var(--code-bg);color:#DCE0E8;padding:24px 26px;border-radius:10px;overflow-x:auto;
     font-size:13.5px;line-height:2;margin:18px 0 26px;
@@ -89,28 +74,16 @@
   .note p:last-child{margin-bottom:0}
   .note ul{margin-bottom:0}
   .learn{
-    background:var(--card);border-radius:14px;padding:32px 36px;margin:22px 0;
+    background:var(--card);border-radius:14px;padding:30px 34px;margin:20px 0;
     box-shadow:0 2px 4px rgba(50,45,40,.04),0 10px 30px rgba(50,45,40,.07);
   }
-  .learn h4{margin:0 0 12px;font-size:18px;color:var(--text);display:flex;gap:12px;align-items:baseline}
-  .learn h4 .badge{
-    font-size:11px;letter-spacing:.08em;padding:4px 10px;border-radius:999px;
-    background:var(--accent-soft);color:var(--accent);font-weight:700;white-space:nowrap;
-  }
-  .learn h4 .badge.trip{background:var(--warn-soft);color:var(--warn)}
+  .learn h3{margin:0 0 12px;font-size:18px}
   .learn p:last-child{margin-bottom:0}
-  .result{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin:28px 0}
-  .result div{
-    background:var(--card);border-radius:12px;padding:22px 20px;text-align:center;
-    box-shadow:0 2px 4px rgba(50,45,40,.04),0 8px 22px rgba(50,45,40,.06);
-  }
-  .result .big{display:block;font-size:30px;font-weight:700;color:var(--good);line-height:1.3}
-  .result .cap{display:block;font-size:13px;color:var(--text-soft);margin-top:4px}
-  footer{margin-top:100px;padding-top:32px;border-top:2px solid var(--line);color:var(--text-soft);font-size:14px}
+  footer{margin-top:88px;padding-top:28px;border-top:2px solid var(--line);color:var(--text-soft);font-size:14px}
   @media(max-width:640px){
     .wrap{padding:48px 20px 80px}
     h1{font-size:29px}h2{font-size:23px}
-    .card,.analogy,.learn{padding:28px 24px}
+    .analogy,.learn{padding:28px 24px}
     td.real{width:auto}
   }
 </style>
@@ -119,335 +92,187 @@
 <div class="wrap">
 
 <header class="hero">
-  <span class="eyebrow">WingArc1st インターン / サーバー編 Day 1</span>
-  <h1>作る前に「約束」を決める<br>— OpenAPI 設計</h1>
-  <p class="subtitle">今日書いたのは 1 ファイルだけ。Go のコードは 1 行も書いていません。それでも 1 日かかった理由を説明します。</p>
+  <span class="eyebrow">学習ノート</span>
+  <h1>OpenAPI ってなに？<br>作る前に「約束」を決める</h1>
+  <p class="subtitle">サーバーのコードを書く前に、まず設計図を書く。その設計図が OpenAPI。</p>
 </header>
 
-<h2><span class="num">SECTION 01</span>今日やったこと</h2>
+<h2>そもそも何をしたのか</h2>
 
-<p class="lead">昨日までは「画面」を作っていました。今日から作るのは、その画面の裏で動く<strong>サーバー</strong>です。ただし今日書いたのはサーバーのコードではなく、<strong>サーバーの設計図</strong>です。</p>
+<p class="lead">サーバー（画面の裏で動くプログラム）を作るとき、いきなりコードを書き始めません。<strong>先に「どんな窓口を用意するか」を決めた文書を書きます。</strong>それが <code class="inline">openapi.yaml</code> です。</p>
 
-<div class="result">
-  <div><span class="big">1</span><span class="cap">書いたファイル</span></div>
-  <div><span class="big">4</span><span class="cap">設計したAPI</span></div>
-  <div><span class="big">9</span><span class="cap">自分で下した判断</span></div>
-  <div><span class="big">0</span><span class="cap">書いたGoコード</span></div>
-</div>
-
-<h3>成果物</h3>
+<p>今回作ったのは、文書管理システムのサーバー側。用意した窓口は4つです。</p>
 
 <table>
-  <thead><tr><th>ファイル</th><th>中身</th></tr></thead>
+  <thead><tr><th>やりたいこと</th><th>用意した窓口</th></tr></thead>
   <tbody>
-    <tr><td class="real"><code class="inline">schema/files/openapi.yaml</code></td><td><strong>今日の本体。</strong>API の設計図</td></tr>
-    <tr><td class="real"><code class="inline">plan.md</code></td><td>実装計画。どの順で何を作るか</td></tr>
-    <tr><td class="real"><code class="inline">research.md</code></td><td>8 つの技術判断とその根拠</td></tr>
-    <tr><td class="real"><code class="inline">data-model.md</code></td><td>データベースの表の設計</td></tr>
-    <tr><td class="real"><code class="inline">quickstart.md</code></td><td>完成後の動作確認手順</td></tr>
+    <tr><td class="real">ファイルをアップロードする</td><td><code class="inline">POST /files</code></td></tr>
+    <tr><td class="real">ファイル一覧を見る・検索する</td><td><code class="inline">GET /files</code></td></tr>
+    <tr><td class="real">1件の詳細情報を見る</td><td><code class="inline">GET /files/{fileId}</code></td></tr>
+    <tr><td class="real">ファイル本体をダウンロードする</td><td><code class="inline">GET /files/{fileId}/content</code></td></tr>
   </tbody>
 </table>
 
-<div class="flow">
-  <div class="flow-step made">
-    <span class="label">午前 ─ 何を作るか整理する</span>
-    <span class="desc">仕様書（spec.md）を読み、必要な API を 4 つに絞り込む。表を埋めるだけで、コードは書かない。</span>
-  </div>
-  <div class="flow-arrow">▼</div>
-  <div class="flow-step made">
-    <span class="label">午後 ─ 設計図を書く</span>
-    <span class="desc">openapi.yaml に 4 つの API を記述。1 本書くごとに検証コマンドを回す。</span>
-  </div>
-  <div class="flow-arrow">▼</div>
-  <div class="flow-step made">
-    <span class="label">夕方 ─ 実装計画を立てる</span>
-    <span class="desc">/speckit.plan で plan.md を生成。設計図から「どう作るか」に変換する。</span>
-  </div>
-  <div class="flow-arrow">▼</div>
-  <div class="flow-step made">
-    <span class="label">見直し ─ 出典のない記述を削る</span>
-    <span class="desc">「なんとなく便利そう」で足した機能を削除。制約値をデータベース定義と揃える。</span>
-  </div>
-</div>
+<p>この4つについて、<strong>「何を受け取って、何を返すか」</strong>を細かく書いたのが今回の成果物です。</p>
 
-<h2><span class="num">SECTION 02</span>直感的な補足</h2>
+<h2>イメージをつかむ</h2>
 
 <div class="analogy">
-  <h3><span class="icon">&#128736;</span>OpenAPI ＝ 建物の設計図</h3>
+  <h3><span class="icon">&#128736;</span>建物の設計図みたいなもの</h3>
 
-  <p>家を建てるとき、いきなり木材を切り始める大工はいません。まず<strong>図面</strong>を描きます。</p>
+  <p>家を建てるとき、いきなり木材を切る大工はいません。まず図面を描きます。</p>
 
-  <p>図面があると何が起きるか。<strong>大工・電気屋・水道屋が、お互いに相談しなくても同じ家を作れます。</strong>「コンセントはここ」「水道管はここ」が図面に書いてあるからです。</p>
+  <p>図面があると、<strong>大工・電気屋・水道屋が相談しなくても同じ家を作れます。</strong>「コンセントはここ」と図面に書いてあるからです。</p>
 
   <table>
-    <thead><tr><th>建築では</th><th></th><th>今日の作業では</th></tr></thead>
     <tbody>
       <tr>
-        <td class="real">施主の要望<br><span style="color:var(--text-soft);font-weight:400;font-size:14px">「3 LDK で日当たりのいい家」</span></td>
+        <td class="real">施主の要望<br><span style="color:var(--text-soft);font-weight:400;font-size:14px">「3LDK で日当たりのいい家」</span></td>
         <td class="arrow">→</td>
-        <td><code class="inline">spec.md</code>（仕様書）<br><span style="color:var(--text-soft);font-size:14px">「ファイルをアップロードして検索できるようにしたい」</span></td>
+        <td><code class="inline">spec.md</code>（仕様書）<br><span style="color:var(--text-soft);font-size:14px">「ファイルを保存して検索できるようにしたい」</span></td>
       </tr>
       <tr>
-        <td class="real">図面<br><span style="color:var(--text-soft);font-weight:400;font-size:14px">寸法・配置がミリ単位で決まっている</span></td>
+        <td class="real">図面<br><span style="color:var(--text-soft);font-weight:400;font-size:14px">寸法がミリ単位で決まっている</span></td>
         <td class="arrow">→</td>
-        <td><code class="inline">openapi.yaml</code>（今日の成果物）<br><span style="color:var(--text-soft);font-size:14px">API の名前・受け取る値・返す値が決まっている</span></td>
-      </tr>
-      <tr>
-        <td class="real">工程表<br><span style="color:var(--text-soft);font-weight:400;font-size:14px">基礎 → 骨組み → 内装の順</span></td>
-        <td class="arrow">→</td>
-        <td><code class="inline">plan.md</code>（実装計画）</td>
+        <td><code class="inline">openapi.yaml</code><br><span style="color:var(--text-soft);font-size:14px">受け取る値・返す値が決まっている</span></td>
       </tr>
       <tr>
         <td class="real">実際の工事</td>
         <td class="arrow">→</td>
-        <td>Day 2 の Go 実装</td>
+        <td>プログラムを書く作業</td>
       </tr>
     </tbody>
   </table>
 
-  <p style="margin-bottom:0"><strong>今日 1 日かけて図面だけ描いた</strong>のは、遠回りに見えて近道だからです。工事が始まってから「やっぱり間取りを変えたい」となると、壁を壊すことになります。</p>
+  <p style="margin-bottom:0">工事が始まってから「やっぱり間取りを変えたい」となると壁を壊すことになります。<strong>先に図面を固めるのは遠回りに見えて近道</strong>です。</p>
 </div>
 
 <div class="analogy">
-  <h3><span class="icon">&#128196;</span>OpenAPI ＝ 2 社間の契約書</h3>
+  <h3><span class="icon">&#128196;</span>そして「契約書」でもある</h3>
 
-  <p>もう 1 つの顔があります。<strong>API は「画面を作る人」と「サーバーを作る人」の間の契約書</strong>でもあります。</p>
+  <p>もうひとつの顔があります。API は <strong>画面を作る人とサーバーを作る人の約束</strong>でもあります。</p>
 
-  <p>「こういう名前で呼んだら、こういう形で返します」という約束です。約束があるから、お互いの完成を待たずに並行して作れます。</p>
+  <p>「こういう名前で呼んだら、こういう形で返す」と決めておけば、お互いの完成を待たずに並行して作れます。</p>
 
-  <div class="note warn">
-    <strong>今日、実際に契約違反が見つかりました</strong>
-    <p>昨日作った画面は、ファイルのダウンロードを <code class="inline">/files/{id}/download</code> という名前で呼びます。<br>
-    今日私が設計したサーバーは、<code class="inline">/files/{id}/content</code> という名前で待っています。</p>
-    <p style="margin-top:12px"><strong>繋いだ瞬間に「そんな窓口はありません」（404 エラー）になります。</strong>どちらが間違っているという話ではなく、<strong>約束をすり合わせていなかった</strong>のが問題です。</p>
+  <div class="note warn" style="margin-bottom:0">
+    <strong>約束がズレていると繋がらない</strong>
+    <p>実際に、前に作った画面と今回のサーバーを比べたらこうなっていました。</p>
+    <ul style="margin-top:10px">
+      <li>画面が呼ぶのは <code class="inline">/files/{id}/download</code></li>
+      <li>サーバーが待っているのは <code class="inline">/files/{id}/content</code></li>
+    </ul>
+    <p style="margin-top:12px">繋いだ瞬間に「そんな窓口はありません」（404 エラー）になります。<strong>どちらが間違いという話ではなく、すり合わせていなかった</strong>のが問題です。</p>
   </div>
-
-  <p style="margin-bottom:0">サーバー編の初日資料には、こう書いてありました。</p>
-
-  <p style="margin:16px 0 0;padding-left:20px;border-left:3px solid var(--line);color:var(--text-soft);font-size:15px">
-    APIの安定性: 使う相手（他サービス・フロント・外部）を把握しきれない。壊すと本番で一斉に動かなくなる
-  </p>
 </div>
 
 <div class="analogy">
-  <h3><span class="icon">&#129521;</span>コード生成 ＝ 図面から型枠を起こす</h3>
+  <h3><span class="icon">&#129521;</span>設計図からプログラムの枠が生成される</h3>
 
-  <p>コンクリートを流し込むには「型枠」が要ります。型枠を手作りすると寸法が狂いますが、<strong>図面から機械で切り出せば必ず図面どおり</strong>になります。</p>
+  <p>コンクリートを流すには型枠が要ります。手作りだと寸法が狂いますが、<strong>図面から機械で切り出せば必ず図面どおり</strong>になります。</p>
 
-  <p>今日実行したこのコマンドが、それをやっています。</p>
+  <p>これを実行すると、</p>
 
-  <pre>cd services/files
-make gen-oapi   <span class="c"># openapi.yaml → Go のコードを自動生成</span></pre>
+  <pre>make gen-oapi</pre>
 
-  <p>生成されたのは <strong>「4 つの API に対応する関数の枠」</strong>です。中身は空っぽで、Day 2 で埋めます。</p>
+  <p>設計図から <strong>「4つの窓口に対応する関数の枠」</strong> が自動で作られます。中身は空っぽで、後から埋めます。</p>
 
-  <pre><span class="k">func</span> (w *ServerInterfaceWrapper) <span class="f">GetFiles</span>(ctx echo.Context) <span class="k">error</span>
-<span class="k">func</span> (w *ServerInterfaceWrapper) <span class="f">UploadFile</span>(ctx echo.Context) <span class="k">error</span>
-<span class="k">func</span> (w *ServerInterfaceWrapper) <span class="f">GetFile</span>(ctx echo.Context) <span class="k">error</span>
-<span class="k">func</span> (w *ServerInterfaceWrapper) <span class="f">DownloadFileContent</span>(ctx echo.Context) <span class="k">error</span></pre>
+  <pre><span class="k">func</span> ... <span class="f">GetFiles</span>(ctx echo.Context) <span class="k">error</span>
+<span class="k">func</span> ... <span class="f">UploadFile</span>(ctx echo.Context) <span class="k">error</span>
+<span class="k">func</span> ... <span class="f">GetFile</span>(ctx echo.Context) <span class="k">error</span>
+<span class="k">func</span> ... <span class="f">DownloadFileContent</span>(ctx echo.Context) <span class="k">error</span></pre>
 
   <div class="note good" style="margin-bottom:0">
-    <strong>設計図と実装がズレようがない</strong>
-    <p>手で関数を書いていたら、設計図を直したときに実装を直し忘れます。生成なら、設計図を直して <code class="inline">make gen-oapi</code> を回すだけ。<strong>ズレる余地がありません。</strong>これが「OpenAPI ファースト」と呼ばれる考え方です。</p>
+    <strong>設計図と中身がズレようがない</strong>
+    <p>手で関数を書いていたら、設計図を直したとき実装を直し忘れます。生成なら設計図を直してコマンドを回すだけ。これが「OpenAPI ファースト」と呼ばれる考え方です。</p>
   </div>
 </div>
 
-<div class="analogy">
-  <h3><span class="icon">&#129534;</span>出典のある設計 ＝ 根拠のある見積書</h3>
+<h2>実際の中身を読んでみる</h2>
 
-  <p>リフォームの見積書に「その他工事 15 万円」とだけ書いてあったら不安になりますよね。<strong>金額には根拠が要ります。</strong></p>
-
-  <p>OpenAPI も同じで、<strong>書いてある 1 行 1 行に「なぜそう書いたか」の出典があるべき</strong>です。今日の後半は、その点検をしました。</p>
-
-  <table>
-    <thead><tr><th>設計図のどこ</th><th>出典（どこから引いてきたか）</th></tr></thead>
-    <tbody>
-      <tr><td class="real">API が存在すること</td><td><code class="inline">spec.md</code> のユーザーストーリー</td></tr>
-      <tr><td class="real">「必須」か「任意」か</td><td><code class="inline">spec.md</code> の機能要件（FR-002 など）</td></tr>
-      <tr><td class="real">「最大 500 文字」などの数値</td><td><code class="inline">spec.md</code> の要件、または <code class="inline">data-model.md</code> の DB 定義</td></tr>
-      <tr><td class="real">エラーの形</td><td>すでにある Auth サービスの実装</td></tr>
-      <tr><td class="real">書き方のルール</td><td>プロジェクト憲法</td></tr>
-      <tr><td class="real">URL の付け方</td><td>REST の一般原則 ← <strong>ここだけが自分の判断</strong></td></tr>
-    </tbody>
-  </table>
-
-  <p style="margin-bottom:0"><strong>「便利そうだから」は出典になりません。</strong>この基準で見直したら、自分で足した機能が 1 つ引っかかりました（後述）。</p>
-</div>
-
-<h2><span class="num">SECTION 03</span>重要なコード</h2>
-
-<h3>1. API を 1 つ定義する</h3>
-
-<p>いちばん単純な「ファイル詳細を取得する API」です。1 行ずつ意味があります。</p>
+<p>いちばん単純な「ファイル詳細を取得する窓口」です。1行ずつ意味があります。</p>
 
 <span class="filename">schema/files/openapi.yaml</span>
-<pre>  /files/{fileId}:            <span class="c"># URL。{fileId} の部分は可変（呼ぶ側が値を入れる）</span>
-    get:                      <span class="c"># HTTP メソッド。get = 取得する</span>
-      summary: ファイル詳細取得   <span class="c"># 一覧に出る短い説明。憲法で必須</span>
-      operationId: getFile     <span class="c"># ★生成される Go の関数名になる★ キャメルケースの動詞句</span>
-      tags:
-        - files               <span class="c"># ドキュメント上のグループ分け</span>
+<pre>  /files/{fileId}:            <span class="c"># URL。{fileId} は可変（呼ぶ側が値を入れる）</span>
+    get:                      <span class="c"># get = 取得する</span>
+      summary: ファイル詳細取得   <span class="c"># 短い説明</span>
+      operationId: getFile     <span class="c"># ★ここが生成される関数名になる★</span>
       parameters:
         - name: fileId
           in: path            <span class="c"># URL の中に埋め込む値、という意味</span>
           required: true      <span class="c"># パスの一部なので必ず要る</span>
           schema:
             type: string
-            format: uuid      <span class="c"># UUID 形式。Auth サービスの User.id に合わせた</span>
+            format: uuid      <span class="c"># UUID 形式</span>
       responses:
         <span class="s">"200"</span>:                <span class="c"># 成功したとき</span>
           description: 取得成功
           content:
             application/json:  <span class="c"># JSON で返す</span>
               schema:
-                $ref: <span class="s">"#/components/schemas/FileResponse"</span>   <span class="c"># 後述の定義を参照</span>
-              example:         <span class="c"># ★憲法で必須★ 実際に返る値の見本</span>
-                file:
-                  id: <span class="s">"3fa85f64-5717-4562-b3fc-2c963f66afa6"</span>
-                  name: <span class="s">"田中商事_請求書.pdf"</span>
+                $ref: <span class="s">"#/components/schemas/FileResponse"</span>   <span class="c"># 別の場所に書いた定義を参照</span>
         <span class="s">"404"</span>:                <span class="c"># ファイルが無かったとき</span>
           description: ファイルが存在しない
           content:
             application/json:
               schema:
-                $ref: <span class="s">"#/components/schemas/ErrorResponse"</span>
-              example:
-                message: <span class="s">"ファイルが見つかりません"</span>
-                code: <span class="s">"FILE_NOT_FOUND"</span></pre>
+                $ref: <span class="s">"#/components/schemas/ErrorResponse"</span></pre>
 
-<div class="note good">
-  <strong><code>$ref</code> は「別の場所に書いた定義を参照する」記号</strong>
-  <p>同じ形を何度も書かずに済みます。<code class="inline">FileResponse</code> の中身を直せば、参照している全箇所に反映されます。<strong>だから定義を先に書き、参照する側を後に書く</strong>必要がありました。</p>
-</div>
+<p><code class="inline">$ref</code> は「別の場所に書いた定義を使い回す」記号です。同じ形を何度も書かずに済みます。<strong>参照される側を先に書く必要がある</strong>ので、定義 → 窓口の順で書きました。</p>
 
-<h3>2. 制約に根拠を持たせる</h3>
+<h3>数字には根拠がいる</h3>
 
-<p>見直しで直した部分です。数字にすべて出典があります。</p>
+<p>制約を書くとき、<strong>「なんとなく」の数字を書かない</strong>のが大事でした。</p>
 
 <span class="filename">schema/files/openapi.yaml</span>
-<pre>    FileInfo:
-      properties:
-        name:
-          type: string
-          minLength: <span class="n">1</span>
-          maxLength: <span class="n">255</span>       <span class="c"># 出典: data-model.md の files.name VARCHAR(255)</span>
-          description: 元のファイル名（DB 定義 files.name VARCHAR(255) に対応）
+<pre>        name:
+          maxLength: <span class="n">255</span>       <span class="c"># 根拠: データベースの列が VARCHAR(255) だから</span>
 
         size:
-          type: integer
-          format: int64
-          minimum: <span class="n">1</span>            <span class="c"># 0 バイトのファイルは登録させない</span>
-          maximum: <span class="n">10485760</span>     <span class="c"># 出典: FR-003「1ファイル最大 10MB」= 10 × 1024 × 1024</span>
-          description: ファイルサイズ（バイト）。上限 10MB（FR-003）</pre>
+          minimum: <span class="n">1</span>            <span class="c"># 0バイトのファイルは登録させない</span>
+          maximum: <span class="n">10485760</span>     <span class="c"># 根拠: 仕様書の「最大10MB」= 10 × 1024 × 1024</span></pre>
 
-<p><code class="inline">description</code> に出典を書いておくのがポイントです。半年後の自分や他の人が「なぜ 255 なんだろう」と悩まずに済みます。</p>
+<p>説明文に根拠を書いておくと、後から読む人が「なぜ 255 なんだろう」と悩まずに済みます。</p>
 
-<h3>3. アップロードできる形式を縛る</h3>
-
-<p>仕様書の「対応ファイル形式は MIME タイプで判定（PDF、Word、Excel、画像等）」を、OpenAPI で表現した部分です。</p>
-
-<span class="filename">schema/files/openapi.yaml</span>
-<pre>      requestBody:
-        content:
-          multipart/form-data:      <span class="c"># ファイルを送るときの形式</span>
-            schema:
-              type: object
-              required:
-                - file              <span class="c"># ファイルは必須（FR-002）</span>
-              properties:
-                file:
-                  type: string
-                  format: binary    <span class="c"># ファイルの中身そのもの、という意味</span>
-                description:
-                  type: string
-                  maxLength: <span class="n">500</span>    <span class="c"># 出典: FR-002「説明文は最大 500 文字」</span>
-            encoding:               <span class="c"># ★どの形式のファイルを受け付けるかの指定★</span>
-              file:
-                contentType: >-
-                  application/pdf,
-                  application/vnd...wordprocessingml.document,   <span class="c"># Word</span>
-                  application/vnd...spreadsheetml.sheet,         <span class="c"># Excel</span>
-                  image/jpeg,
-                  image/png</pre>
-
-<div class="note warn">
-  <strong>なぜ「返す側」ではなく「受け取る側」を縛ったのか</strong>
-  <p>最初は返すデータのほうに「この 5 種類しかあり得ない」と書こうとしました。でも仕様書には「PDF、Word、Excel、画像<strong>等</strong>」と書いてあります。「等」がある以上、5 種類に閉じるのは仕様より厳しすぎます。</p>
-  <p style="margin-top:12px"><strong>本当に縛りたいのは「受け付ける形式」</strong>なので、アップロード側だけに書きました。将来対応形式が増えても、返す側の約束を壊さずに済みます。</p>
-</div>
-
-<h2><span class="num">SECTION 04</span>今日の学び</h2>
+<h2>わかったこと</h2>
 
 <div class="learn">
-  <h4><span class="badge trip">つまずき</span>資料の説明が仕様書と食い違っていた</h4>
-  <p>今日の進行資料（<code class="inline">day1-design.md</code>）にある「作るものの一覧表」が、<strong>昨日のフロントエンド版からのコピー</strong>で、ストーリー番号がずれていました。</p>
-  <p>資料では「ファイル詳細は後回し（P2）」となっていましたが、<strong>実際の仕様書では最優先（P1）</strong>でした。資料を信じていたら、必須機能を 1 つ作り忘れるところでした。</p>
-  <p><strong>教訓：</strong>説明資料と仕様書が食い違ったら、<strong>仕様書が正</strong>。昨日 E2E テストで学んだ「ドキュメントより実物」と同じ構図です。</p>
+  <h3>資料より仕様書が正しい</h3>
+  <p>進行の説明資料にあった「作るものの一覧」が、別の教材からのコピーになっていて、<strong>優先度の番号がずれていました。</strong>資料では「後回し」とされていた機能が、仕様書では最優先でした。</p>
+  <p>説明資料と仕様書が食い違ったら、<strong>仕様書が正</strong>。そのまま信じていたら必須機能をひとつ作り忘れていました。</p>
 </div>
 
 <div class="learn">
-  <h4><span class="badge">気づき</span>自分で決めていいことと、決まっていることがある</h4>
-  <p>設計を始める前に既存のコードを読んだら、<strong>すでに答えが出ている項目</strong>がいくつもありました。</p>
-  <ul>
-    <li>エラーの形（<code class="inline">message</code> と <code class="inline">code</code> の 2 つ）→ Auth サービスで確定済み</li>
-    <li>「認証されていません」のエラー内容 → 共有プログラムが固定文言を返す</li>
-    <li><code class="inline">/healthz</code> は設計図に書かない → 憲法に例外規定あり</li>
-  </ul>
-  <p><strong>教訓：</strong>ゼロから考える前に、<strong>すでに決まっていることを探す</strong>。自由に決められる範囲は思ったより狭く、その分だけ判断に集中できます。</p>
+  <h3>自由に決められる範囲は思ったより狭い</h3>
+  <p>設計を始める前に既存のコードを読んだら、<strong>すでに答えが出ている項目</strong>がたくさんありました。エラーの返し方、認証失敗時のメッセージ、書式のルール。</p>
+  <p>ゼロから考える前に「すでに決まっていることを探す」。そのぶん、本当に自分で決めるべきところに集中できます。</p>
 </div>
 
 <div class="learn">
-  <h4><span class="badge trip">つまずき</span>「便利そう」で機能を足していた</h4>
-  <p>並び替え（<code class="inline">sort</code>）のパラメータを追加していました。あったほうが便利だと思ったからです。</p>
-  <p>でも見直したら、<strong>仕様書に並び替えの要件がありません</strong>。さらに、実際に使う側であるフロントエンドも並び替えを呼んでいませんでした。<strong>誰も要求していない機能</strong>だったので削除しました。</p>
-  <p><strong>教訓：</strong>仕様駆動開発では「あったほうがいい」は理由になりません。ただし完全に消したのではなく、<strong>「並び順は新しい順で固定（内部仕様）」と文書に残しました。</strong>一覧に順序は必要だからです。</p>
+  <h3>「便利そう」は理由にならない</h3>
+  <p>並び替えの機能を追加していました。あったほうが便利だと思ったからです。</p>
+  <p>でも見直したら<strong>仕様書に並び替えの要件がなく、使う側の画面も呼んでいませんでした。</strong>誰も要求していない機能だったので削除しました。</p>
+  <p>設計図に書く1行1行には出典（どこから引いてきたか）が必要で、<strong>「あったほうがいい」は出典になりません。</strong></p>
 </div>
 
 <div class="learn">
-  <h4><span class="badge">気づき</span>フロントと繋ぐと壊れることが分かった</h4>
-  <p>昨日作った画面の設計図と、今日作ったサーバーの設計図を並べて比べました。</p>
-  <ul>
-    <li>ダウンロードの URL が違う（<code class="inline">/download</code> vs <code class="inline">/content</code>）→ <strong>繋ぐと 404</strong></li>
-    <li>フロントはタグ機能の API を呼ぶが、サーバー側には存在しない → <strong>タグが表示されない</strong></li>
-    <li>ID の形式が違う（<code class="inline">file_abc123</code> 形式 vs UUID）</li>
-  </ul>
-  <p><strong>教訓：</strong>片方だけ「正しく」設計しても繋がりません。<strong>API は合意であって、正しさの競争ではない</strong>。これが「契約書」と呼ばれる理由を実感しました。</p>
+  <h3>正しく作っても繋がらないことがある</h3>
+  <p>ダウンロードの URL を <code class="inline">/content</code> にしたのは、REST という設計の原則に沿った判断でした。URL は名詞にして、動作は GET / POST などで表す、という考え方です。</p>
+  <p>でも既存の画面は <code class="inline">/download</code> を呼んでいました。<strong>API は正しさの競争ではなく合意</strong>だと分かりました。</p>
 </div>
 
 <div class="learn">
-  <h4><span class="badge">気づき</span>設計図と設計書がズレることもある</h4>
-  <p><code class="inline">sort</code> を削除したとき、<code class="inline">data-model.md</code>（データ設計書）のほうに <code class="inline">Sort</code> の記述が残っていました。<strong>片方だけ直すと、次に読む人が混乱します。</strong></p>
-  <p><strong>教訓：</strong>関連する文書は一緒に直す。今回は「削除」ではなく「並び順は固定、理由はこれ」と書き換えたので、<strong>なぜ無いのかが分かる状態</strong>になりました。</p>
+  <h3>関連する文書は一緒に直す</h3>
+  <p>並び替えを削除したとき、データ設計のほうにその記述が残っていました。片方だけ直すと次に読む人が混乱します。</p>
+  <p>今回は消すのではなく「並び順は新しい順で固定。理由はこれ」と書き換えたので、<strong>なぜ無いのかが分かる状態</strong>になりました。</p>
 </div>
 
 <div class="learn">
-  <h4><span class="badge">気づき</span>1 本ずつ書いて、そのつど検証する</h4>
-  <p>設計図を全部書いてから検証すると、エラーが出たときにどこが原因か分かりません。<strong>1 つの API を書くごとに <code class="inline">make gen-oapi</code> を回す</strong>と、直前に足した部分が原因だと即座に分かります。</p>
-  <p><strong>教訓：</strong>これはプログラミング全般に言えることです。小さく作って、小さく確かめる。</p>
-</div>
-
-<h2><span class="num">SECTION 05</span>Day 2 の予告</h2>
-
-<div class="card">
-  <p>今日作った設計図から、<strong>関数の枠だけ</strong>が生成されています。Day 2 はこの中身を埋める作業です。</p>
-
-  <table>
-    <thead><tr><th>作るもの</th><th>役割</th></tr></thead>
-    <tbody>
-      <tr><td class="real"><code class="inline">handler</code></td><td>リクエストを受け取り、返す</td></tr>
-      <tr><td class="real"><code class="inline">usecase</code></td><td>「アップロードする」などの処理の流れ</td></tr>
-      <tr><td class="real"><code class="inline">domain</code></td><td>ファイルとは何か、というルール</td></tr>
-      <tr><td class="real"><code class="inline">infra</code></td><td>データベースへの読み書き、ファイルの保存</td></tr>
-    </tbody>
-  </table>
-
-  <p style="margin-bottom:0">お手本は <code class="inline">services/auth/</code> にあります。同じ構造で <code class="inline">services/files/</code> を作ることになります。</p>
+  <h3>小さく作って、小さく確かめる</h3>
+  <p>設計図を全部書いてから検証すると、エラーが出たときどこが原因か分かりません。<strong>窓口をひとつ書くたびに検証コマンドを回す</strong>と、直前に足した部分が原因だと即座に分かります。</p>
 </div>
 
 <footer>
-  <p>WingArc1st 夏のワークショップ / 学習ノート — サーバー編 Day 1<br>
-  対象リポジトリ: <code class="inline">speckit-workshop-server</code>（ブランチ: 002-document-management-uratachihaya）<br>
-  成果物: OpenAPI 4 エンドポイント / 実装計画 4 文書 / 検証通過</p>
+  <p>学習ノート — OpenAPI 設計 / Spec Kit ワークショップ（サーバー編）</p>
 </footer>
 
 </div>
