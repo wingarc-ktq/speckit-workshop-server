@@ -89,9 +89,9 @@ type ListFilesParams struct {
     Limit   int           // デフォルト 20、最大 100
     Search  string        // ファイル名部分一致。空文字は条件なし
     TagIDs  []uuid.UUID   // 空は条件なし（OR ではなく "指定したタグのいずれかを含む" = 配列オーバーラップ）
-    Sort    SortField     // Name/NameDesc/UploadedAt/UploadedAtDesc/Size/SizeDesc（デフォルト UploadedAtDesc）
 }
 ```
 
 - `page < 1` または `limit` が範囲外（1〜100 逸脱）の場合、OpenAPI 検証ミドルウェアが 400 を返す（FR: 不正なページネーションパラメータにはバリデーションエラー）。
 - `Offset = (Page - 1) * Limit` として `ListFiles` クエリに渡す。
+- **並び順は `uploaded_at DESC` 固定**（内部仕様）。`spec.md` にソートの機能要件が存在しないため、API パラメータとしては公開しない。一覧に安定した順序は必要なので、実装側で新しい順に固定する。ソート機能が要求された時点で `sort` クエリパラメータと `SortField` 型を追加する。

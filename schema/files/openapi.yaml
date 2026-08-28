@@ -60,6 +60,7 @@ paths:
           schema:
             type: string
             maxLength: 255
+            description: files.name が VARCHAR(255) のため、それを超える検索語は一致し得ない
             example: "請求書"
         - name: tagIds
           in: query
@@ -72,23 +73,6 @@ paths:
             items:
               type: string
               format: uuid
-        - name: sort
-          in: query
-          description: |
-            並び順。先頭の `-` は降順を表す。
-            省略時は `-uploadedAt`（新しい順）。
-          required: false
-          schema:
-            type: string
-            enum:
-              - name
-              - -name
-              - uploadedAt
-              - -uploadedAt
-              - size
-              - -size
-            default: -uploadedAt
-            example: "-uploadedAt"
       responses:
         "200":
           description: 取得成功
@@ -161,6 +145,16 @@ paths:
                     type: string
                     format: uuid
                   example: ["9c858901-8a57-4791-81fe-4c455b099bc9"]
+            encoding:
+              file:
+                # spec.md Edge Cases「対応ファイル形式は MIME タイプで判定
+                # （PDF、Word、Excel、画像等）」に基づく受け入れ形式の指定
+                contentType: >-
+                  application/pdf,
+                  application/vnd.openxmlformats-officedocument.wordprocessingml.document,
+                  application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,
+                  image/jpeg,
+                  image/png
       responses:
         "201":
           description: 登録成功
@@ -334,15 +328,23 @@ components:
           example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
         name:
           type: string
+          minLength: 1
           maxLength: 255
+          description: 元のファイル名（DB 定義 files.name VARCHAR(255) に対応）
           example: "田中商事_請求書.pdf"
         size:
           type: integer
           format: int64
-          description: ファイルサイズ（バイト）
+          minimum: 1
+          maximum: 10485760
+          description: ファイルサイズ（バイト）。上限 10MB（FR-003）
           example: 204800
         mimeType:
           type: string
+          maxLength: 255
+          description: |
+            アップロード時の Content-Type。
+            受け入れ形式は spec.md Edge Cases に準拠（PDF / Word / Excel / 画像）。
           example: "application/pdf"
         description:
           type: string
@@ -387,14 +389,18 @@ components:
             $ref: "#/components/schemas/FileInfo"
         total:
           type: integer
-          description: 検索条件に一致する総件数
+          minimum: 0
+          description: 検索条件に一致する総件数（0 件の場合は 0）
           example: 25
         page:
           type: integer
-          description: 現在のページ番号
+          minimum: 1
+          description: 現在のページ番号（1 始まり）
           example: 1
         limit:
           type: integer
+          minimum: 1
+          maximum: 100
           description: 1 ページあたりの件数
           example: 20
 
