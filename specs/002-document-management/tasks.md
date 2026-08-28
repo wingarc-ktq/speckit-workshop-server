@@ -127,12 +127,12 @@
 
 **Purpose**: Constitution 準拠の最終確認と横断的な品質担保。
 
-- [ ] T045 [P] `cd services/files && go test -cover ./...` で usecase 層 80%以上・handler 層 70%以上のカバレッジを確認（Constitution IV）
-- [ ] T046 [P] `make -C services/files test-integration` を実行し `testcontainers-go` による repo 層統合テストが通ることを確認（Docker 必須）
-- [ ] T047 [quickstart.md](./quickstart.md) の手順に従い User Story 1〜3 の Acceptance Scenario をすべて curl で手動確認
-- [ ] T048 [P] Schemathesis で `schema/files/openapi.yaml` に対する API テストを実行しエラーがないことを確認（SC-005: 全エンドポイントが API 仕様と一致）
-- [ ] T049 [P] Hurl でアップロード→一覧→詳細→ダウンロードのシナリオテストを `api-tests/hurl` 配下に作成・実行（既存の auth 用シナリオ構成を参考）
-- [ ] T050 公開シンボル（`domain.File`, `usecase.FileRepository`/`FileStorage`, ハンドラの公開メソッド等）に GoDoc コメントが付いていることを確認（Constitution I）
+- [X] T045 [P] `cd services/files && go test -cover ./...` で usecase 層 80%以上・handler 層 70%以上のカバレッジを確認（Constitution IV）— usecase 87.9%、handler 80.2% でいずれも基準達成。未カバー行は `default: return nil, err`（想定外エラーをそのまま伝播する分岐）や `io.ReadAll` の異常系など、壊れた Reader を用意しないと再現できない防御的分岐のみで、追加テストは不要と判断
+- [X] T046 [P] `make -C services/files test-integration` を実行し `testcontainers-go` による repo 層統合テストが通ることを確認（Docker 必須）— `-count=1` でキャッシュを無効化し実際に PostgreSQL コンテナを起動して再検証、全パッケージ PASS
+- [X] T047 [quickstart.md](./quickstart.md) の手順に従い User Story 1〜3 の Acceptance Scenario をすべて curl で手動確認 — Phase 6 の `docker compose up` 実機確認で実施済み
+- [ ] T048 [P] Schemathesis で `schema/files/openapi.yaml` に対する API テストを実行しエラーがないことを確認（SC-005: 全エンドポイントが API 仕様と一致）— Day 3 の範囲のため今回は対象外
+- [ ] T049 [P] Hurl でアップロード→一覧→詳細→ダウンロードのシナリオテストを `api-tests/hurl` 配下に作成・実行（既存の auth 用シナリオ構成を参考）— Day 3 の範囲のため今回は対象外
+- [X] T050 公開シンボル（`domain.File`, `usecase.FileRepository`/`FileStorage`, ハンドラの公開メソッド等）に GoDoc コメントが付いていることを確認（Constitution I）— 全パッケージを `go doc -all` で監査し全公開シンボルにコメント有りを確認。副次的に `internal/handler/health.go` に残っていた重複パッケージコメント（Phase 3 で `file_handler.go` にも追加されたため二重になっていた）を削除
 
 ---
 

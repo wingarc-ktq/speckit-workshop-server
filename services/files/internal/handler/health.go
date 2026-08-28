@@ -1,4 +1,3 @@
-// Package handler は HTTP ハンドラを提供する.
 package handler
 
 import (

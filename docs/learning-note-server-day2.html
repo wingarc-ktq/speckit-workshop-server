@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学習ノート — 設計図からサーバーを作る</title>
+<style>
+  :root{
+    --bg:#FAF8F5; --card:#FFFFFF; --text:#33383F; --text-soft:#6B7280;
+    --accent:#2C6E9B; --accent-soft:#E8F1F7;
+    --warn:#B4762C; --warn-soft:#FDF4E7;
+    --good:#3D7A55; --good-soft:#EAF4EE;
+    --line:#E6E2DC; --code-bg:#2B303B;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif;
+    line-height:1.9;font-size:16px;
+  }
+  .wrap{max-width:900px;margin:0 auto;padding:72px 32px 120px}
+  header.hero{margin-bottom:64px;padding-bottom:36px;border-bottom:2px solid var(--line)}
+  .eyebrow{
+    display:inline-block;font-size:13px;letter-spacing:.12em;color:var(--accent);
+    background:var(--accent-soft);padding:6px 14px;border-radius:999px;font-weight:600;margin-bottom:24px;
+  }
+  h1{font-size:38px;line-height:1.4;margin:0 0 20px;letter-spacing:-.01em}
+  .subtitle{font-size:18px;color:var(--text-soft);margin:0}
+  h2{font-size:27px;margin:72px 0 12px;padding-left:16px;border-left:5px solid var(--accent);line-height:1.5}
+  h3{font-size:20px;margin:40px 0 14px}
+  p{margin:0 0 20px}
+  ul,ol{margin:0 0 20px;padding-left:26px}
+  li{margin-bottom:10px}
+  .lead{font-size:17px;color:var(--text-soft);margin-bottom:32px}
+  .analogy{
+    background:var(--card);border-radius:14px;padding:36px 40px;margin:28px 0;
+    box-shadow:0 2px 4px rgba(50,45,40,.04),0 10px 30px rgba(50,45,40,.07);
+    border-top:5px solid var(--accent);
+  }
+  .analogy h3{margin-top:0;display:flex;align-items:center;gap:12px}
+  .icon{font-size:26px;line-height:1}
+  table{width:100%;border-collapse:collapse;margin:24px 0;font-size:15px}
+  th,td{text-align:left;padding:14px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:13px;letter-spacing:.06em}
+  tr:last-child td{border-bottom:none}
+  td.real{width:32%;font-weight:600}
+  td.arrow{width:6%;text-align:center;color:var(--text-soft)}
+  pre{
+    background:var(--code-bg);color:#DCE0E8;padding:24px 26px;border-radius:10px;overflow-x:auto;
+    font-size:13.5px;line-height:2;margin:18px 0 26px;
+    font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  }
+  pre .c{color:#7E8AA0;font-style:italic}
+  pre .k{color:#C6A0F6}
+  pre .s{color:#A6DA95}
+  pre .f{color:#8AADF4}
+  pre .n{color:#F5A97F}
+  code.inline{
+    background:#EFECE7;padding:3px 7px;border-radius:5px;font-size:14px;
+    font-family:"SFMono-Regular",Consolas,monospace;color:#8B4A2F;
+  }
+  .filename{
+    display:inline-block;background:#3A404C;color:#C9D0DC;font-size:12.5px;padding:6px 14px;
+    border-radius:8px 8px 0 0;font-family:"SFMono-Regular",Consolas,monospace;
+    margin-bottom:-18px;position:relative;z-index:1;
+  }
+  .filename+pre{border-top-left-radius:0}
+  .note{border-radius:10px;padding:22px 26px;margin:26px 0;font-size:15px}
+  .note strong{display:block;margin-bottom:6px}
+  .note.warn{background:var(--warn-soft);border-left:5px solid var(--warn)}
+  .note.warn strong{color:var(--warn)}
+  .note.good{background:var(--good-soft);border-left:5px solid var(--good)}
+  .note.good strong{color:var(--good)}
+  .note p:last-child{margin-bottom:0}
+  .note ul{margin-bottom:0}
+  .learn{
+    background:var(--card);border-radius:14px;padding:30px 34px;margin:20px 0;
+    box-shadow:0 2px 4px rgba(50,45,40,.04),0 10px 30px rgba(50,45,40,.07);
+  }
+  .learn h3{margin:0 0 12px;font-size:18px}
+  .learn p:last-child{margin-bottom:0}
+  .layers{display:flex;flex-direction:column;margin:28px 0}
+  .layer{background:var(--accent-soft);border-radius:10px;padding:16px 22px}
+  .layer .n{font-weight:700;color:var(--accent);font-size:15px;display:block}
+  .layer .d{font-size:14px;color:var(--text-soft);display:block;margin-top:2px}
+  .layer-arrow{text-align:center;color:var(--accent);font-size:18px;line-height:1;padding:8px 0}
+  footer{margin-top:88px;padding-top:28px;border-top:2px solid var(--line);color:var(--text-soft);font-size:14px}
+  @media(max-width:640px){
+    .wrap{padding:48px 20px 80px}
+    h1{font-size:29px}h2{font-size:23px}
+    .analogy,.learn{padding:28px 24px}
+    td.real{width:auto}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <span class="eyebrow">学習ノート</span>
+  <h1>設計図から<br>動くサーバーを作る</h1>
+  <p class="subtitle">前回書いた openapi.yaml をもとに、実際に動くプログラムを組み立てた。</p>
+</header>
+
+<h2>そもそも何をしたのか</h2>
+
+<p class="lead">前回は「どんな窓口を用意するか」を紙の上で決めた。今回はその窓口の向こう側で<strong>実際に働くプログラム</strong>を書いた。</p>
+
+<p>できあがったものはこう動く。</p>
+
+<pre><span class="c"># ファイルをアップロードする</span>
+curl -X POST http://localhost:8082/api/v1/files \
+  -H <span class="s">"Authorization: Bearer $TOKEN"</span> \
+  -F <span class="s">"file=@請求書.pdf"</span>
+
+<span class="c"># → 201 Created</span>
+<span class="c"># {"file":{"id":"3fa85f64-...","name":"請求書.pdf","size":204800, ...}}</span></pre>
+
+<p>前回 <code class="inline">openapi.yaml</code> に「こう返します」と書いた形が、<strong>本当にその形で返ってきた</strong>。</p>
+
+<h2>イメージをつかむ</h2>
+
+<div class="analogy">
+  <h3><span class="icon">&#127860;</span>4 つの層 ＝ 飲食店の役割分担</h3>
+
+  <p>プログラムを 4 つの層に分けて書いた。これは飲食店の役割分担に近い。</p>
+
+  <div class="layers">
+    <div class="layer">
+      <span class="n">handler（ホール係）</span>
+      <span class="d">お客さんの注文を聞いて、できた料理を運ぶ。厨房のことは知らない</span>
+    </div>
+    <div class="layer-arrow">▼</div>
+    <div class="layer">
+      <span class="n">usecase（料理人）</span>
+      <span class="d">実際に作る。「10MB を超えていたら断る」などのルールを持つ</span>
+    </div>
+    <div class="layer-arrow">▼</div>
+    <div class="layer">
+      <span class="n">infra（仕入れ・倉庫係）</span>
+      <span class="d">データベースやファイル保存とやりとりする</span>
+    </div>
+  </div>
+
+  <p>この分け方の何が嬉しいか。<strong>ホール係は「食材がどこから来たか」を知らなくていい</strong>し、料理人は「注文がスマホから来たか電話から来たか」を知らなくていい。</p>
+
+  <div class="note good" style="margin-bottom:0">
+    <strong>実際に効いた場面</strong>
+    <p>最初の計画では、料理人（usecase）が「アップロードされたデータの塊」を直接開ける想定だった。でもそのデータは<strong>巻き戻せない</strong>形式で、順番を間違えると読めなくなる。</p>
+    <p style="margin-top:12px">そこで<strong>データを開けて仕分ける仕事はホール係（handler）に移した。</strong>料理人は「読めるもの」を受け取るだけ。結果的に、料理人が通信の形式を知らずに済むようになり、層の分け方としても正しくなった。</p>
+  </div>
+</div>
+
+<div class="analogy">
+  <h3><span class="icon">&#128268;</span>最後の工程は「配線工事」</h3>
+
+  <p>4 つの層はそれぞれ完成していて、テストも全部通っていた。<strong>それでもサーバーは起動しなかった。</strong></p>
+
+  <p>部品はできているが、繋がっていなかったからだ。家でいうと、部屋は全部できたけど配線工事がまだで、スイッチを押しても照明が点かない状態。</p>
+
+  <p>最後の工程で、こういうことを書いた。</p>
+
+  <ul>
+    <li>8082 番ポートで待ち受ける</li>
+    <li><code class="inline">/files</code> にリクエストが来たら handler を呼ぶ</li>
+    <li>handler は usecase を使う、usecase は DB とストレージを使う</li>
+    <li>認証チェックを全部の窓口に掛ける（ただし死活監視は除く）</li>
+  </ul>
+
+  <p style="margin-bottom:0">この「誰が誰を使うか」を組み立てる作業を <strong>DI（依存性注入）</strong> と呼ぶ。プログラムの中で一番最後に書く部分で、ここだけが全部の層を知っている。</p>
+</div>
+
+<div class="analogy">
+  <h3><span class="icon">&#127917;</span>テストには 2 種類ある</h3>
+
+  <p>今回、性格の違うテストを 2 つ書いた。</p>
+
+  <table>
+    <thead><tr><th></th><th>単体テスト</th><th>統合テスト</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="real">相手</td>
+        <td><strong>偽物</strong>（モック）</td>
+        <td><strong>本物</strong>の PostgreSQL</td>
+      </tr>
+      <tr>
+        <td class="real">速さ</td>
+        <td>一瞬</td>
+        <td>数十秒（コンテナ起動）</td>
+      </tr>
+      <tr>
+        <td class="real">分かること</td>
+        <td>ロジックが正しいか</td>
+        <td>SQL が本当に動くか</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p><strong>モックは「台本どおりに答える代役」</strong>だと思えばいい。「この ID で聞かれたら、このデータを返してね」と決めておく。相手が代役なので、DB が無くてもテストできるし一瞬で終わる。</p>
+
+  <p style="margin-bottom:0">ただし代役は台本どおりにしか動かないので、<strong>「SQL の書き方が本当に正しいか」は分からない。</strong>そこは本物の PostgreSQL を立てて確かめた。テストのたびに使い捨てのコンテナが起動して、終わったら消える。</p>
+</div>
+
+<h2>実際のコードを読んでみる</h2>
+
+<h3>層をまたぐときにエラーを翻訳する</h3>
+
+<span class="filename">internal/infra/repo/file_repository.go</span>
+<pre><span class="c">// SQL がヒットしない場合、sqlc 生成コードは pgx.ErrNoRows を返す。</span>
+<span class="c">// これはあくまで pgx（DB ドライバ）が使う内部的なエラー型であり、</span>
+<span class="c">// usecase/handler 層に漏れ出すと DB の詳細に依存してしまう。</span>
+<span class="c">// そのため、ここで domain.ErrFileNotFound に変換してから返す</span>
+<span class="c">// （出典: spec.md FR-010）</span>
+<span class="k">if</span> errors.<span class="f">Is</span>(err, pgx.ErrNoRows) {
+    <span class="k">return nil</span>, domain.ErrFileNotFound
+}</pre>
+
+<p><code class="inline">pgx.ErrNoRows</code> は「PostgreSQL 用のライブラリが使うエラー」。これをそのまま上の層に渡すと、<strong>もし将来 MySQL に変えたら、上の層まで全部書き直し</strong>になる。</p>
+
+<p>ここで自分たちの言葉（<code class="inline">ErrFileNotFound</code>）に翻訳しておけば、DB を変えても書き直すのはこの 1 箇所だけで済む。</p>
+
+<h3>死活監視だけ認証を外す</h3>
+
+<span class="filename">internal/server/server.go</span>
+<pre><span class="c">// /healthz・/readyz には JWT ミドルウェアを掛けない。</span>
+<span class="c">// なぜなら:</span>
+<span class="c">//   1. この2つは Docker/Kubernetes 等のインフラが定期的に叩く「死活監視」用で、</span>
+<span class="c">//      呼び出し元はオーケストレーター（人間ではない）であり JWT を持っていない。</span>
+<span class="c">//      認証必須にすると、ヘルスチェック自体が失敗して正常なコンテナが</span>
+<span class="c">//      再起動され続ける、という本末転倒な事態になる。</span>
+<span class="c">//   2. 仕様上も「認証なしで提供しなければならない」と明記されている</span>
+<span class="c">//      （出典: spec.md FR-023）</span>
+e.<span class="f">GET</span>(<span class="s">"/healthz"</span>, healthHandler.Live)
+e.<span class="f">GET</span>(<span class="s">"/readyz"</span>, healthHandler.Ready)</pre>
+
+<p><strong>「認証を掛けない」という判断にも理由がいる。</strong>掛け忘れたのか、意図的に外したのかが、コメントで区別できる。</p>
+
+<h2>わかったこと</h2>
+
+<div class="learn">
+  <h3>部品が全部正しくても、繋ぐと壊れることがある</h3>
+  <p>4 つの層それぞれのテストは全部通っていた。統合テストも本物の DB で通っていた。<strong>それでも、実際にサーバーとして起動したら全リクエストがエラーになった。</strong></p>
+  <p>原因は前回書いた設計図の 1 行。「アップロードできるファイル形式」の書き方が、検証を担当するライブラリに正しく解釈されなかった。OpenAPI の仕様上は正しい書き方だったが、<strong>ライブラリが対応していなかった。</strong></p>
+  <p>各部品のテストは「部品が正しいか」しか見ていない。<strong>「設計図がライブラリに正しく伝わるか」は、繋いで動かすまで誰も確かめていなかった。</strong></p>
+</div>
+
+<div class="learn">
+  <h3>入力ミスと故障は別物</h3>
+  <p>最初の実装では、想定外のエラーが起きたとき一律で「<strong>あなたの送ったデータが悪い</strong>」（400）と返していた。</p>
+  <p>でもデータベースが落ちているときにこれを返すと、利用者は「入力を直せば通る」と思って何度も試すことになる。<strong>本当はサーバー側の問題（500）</strong>なのに。</p>
+  <p>既知のエラー（ファイルが無い、サイズ超過）だけをここで扱い、それ以外は素通しする形に直した。</p>
+</div>
+
+<div class="learn">
+  <h3>「閉じない」という判断にも理由がいる</h3>
+  <p>ファイルをダウンロードするとき、読み取り用に開いたものを<strong>あえて閉じずに</strong>次に渡している。</p>
+  <p>レスポンスを書き終わるまで開いたままにする必要があり、途中で閉じると読めなくなるから。しかも自動生成されたコードが最後に閉じてくれるので、こちらで閉じると二重に閉じてしまう。</p>
+  <p><strong>「やらない」ことにも理由を書かないと、後から見た人が「閉じ忘れでは？」と直してしまう。</strong></p>
+</div>
+
+<div class="learn">
+  <h3>テストが見ていない隙間がある</h3>
+  <p>一覧取得に、ページ番号が範囲外のとき総件数が 0 になるバグが残っている。ファイルが 3 件あるのに 99 ページ目を要求すると、「全 0 件」と返ってしまう。</p>
+  <p>統合テストには「検索して 0 件」のケースがあったが、これは<strong>本当に 0 件</strong>なので通る。「ページが範囲外で 0 件（でも総数は 3）」とは別物だった。</p>
+  <p><strong>似て見えるケースを 1 つで済ませると、隙間ができる。</strong></p>
+</div>
+
+<div class="learn">
+  <h3>手元で動くのに Docker で壊れる問題</h3>
+  <p>Go には複数のプロジェクトをまとめて扱う仕組みがある。手元ではその仕組みのおかげで、別プロジェクトの設定を借りてビルドが通ってしまうことがある。</p>
+  <p>でも Docker の中では 1 つのプロジェクト単体でビルドするので、<strong>借りていた設定が無くなって失敗する。</strong></p>
+  <p>今回は毎回両方のモードでビルドを確認していたので早めに気づけた。<strong>「手元では動く」は証明にならない。</strong></p>
+</div>
+
+<div class="learn">
+  <h3>自動生成は「枠」だけ</h3>
+  <p>設計図から生成されたのは、関数の名前と型と入力チェックだけ。中身は空っぽだった。</p>
+  <p>今回埋めたのはその中身で、<strong>生成が肩代わりしてくれるのは「間違えやすい単純作業」の部分</strong>だと実感した。設計図と実装がズレる心配がなくなるのが一番の効果。</p>
+</div>
+
+<footer>
+  <p>学習ノート — 設計図からサーバーを作る / Spec Kit ワークショップ（サーバー編）</p>
+</footer>
+
+</div>
+</body>
+</html>
