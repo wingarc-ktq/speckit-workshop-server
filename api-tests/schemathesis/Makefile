@@ -1,7 +1,9 @@
-.PHONY: install run run-auth register-user get-token report clean
+.PHONY: install run run-auth run-files register-user get-token get-files-token report clean
 
 AUTH_URL  ?= http://localhost:8081/api/v1
+FILES_URL ?= http://localhost:8082/api/v1
 AUTH_SCHEMA  := ../../schema/auth/openapi.yaml
+FILES_SCHEMA := ../../schema/files/openapi.yaml
 REPORT_DIR := report
 
 # JWT 取得に使う固定テストユーザー (register-user で Auth に登録し get-token でログインする)
@@ -47,6 +49,29 @@ register-user: ## テストユーザーを Auth に登録 (既に存在すれば
 	  -d '{"email":"$(TEST_EMAIL)","password":"$(TEST_PASSWORD)","name":"$(TEST_NAME)"}'
 
 get-token: register-user ## テストユーザーでログインして accessToken を出力
+	@curl -s -X POST $(AUTH_URL)/auth/login \
+	  -H 'Content-Type: application/json' \
+	  -d '{"email":"$(TEST_EMAIL)","password":"$(TEST_PASSWORD)"}' \
+	  | jq -r '.accessToken'
+
+run-files: $(ST) ## Files サービスを Schemathesis で検証 (認証トークン付き)
+	mkdir -p $(REPORT_DIR)
+	@TOKEN="$${FILES_TOKEN:-$$($(MAKE) -s get-files-token)}"; \
+	set --; \
+	if [ -n "$$TOKEN" ] && [ "$$TOKEN" != "null" ]; then \
+	  set -- --header "Authorization: Bearer $$TOKEN"; \
+	else \
+	  echo "⚠️  トークン未取得: 未認証パスのみ検証します"; \
+	fi; \
+	$(ST) run \
+	  --url $(FILES_URL) \
+	  --checks all \
+	  --max-examples 30 \
+	  "$$@" \
+	  --report junit --report-dir $(REPORT_DIR)/files \
+	  $(FILES_SCHEMA)
+
+get-files-token: register-user ## Files 用認証トークンを Auth から取得する
 	@curl -s -X POST $(AUTH_URL)/auth/login \
 	  -H 'Content-Type: application/json' \
 	  -d '{"email":"$(TEST_EMAIL)","password":"$(TEST_PASSWORD)"}' \

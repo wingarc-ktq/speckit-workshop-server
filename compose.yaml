@@ -9,7 +9,7 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - ./.postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
       - ./migrations/init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-workshop}"]
@@ -44,4 +44,33 @@ services:
       retries: 5
       start_period: 5s
 
-  # files サービスは未実装のため compose 未登録。auth を参考に作成後、ここに追加する。
+  files:
+    build:
+      # 共有ライブラリ packages/authjwt を含めるためコンテキストはリポジトリ直下.
+      context: .
+      dockerfile: services/files/Dockerfile
+    container_name: speckit-workshop-files
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      FILES_SERVICE_PORT: 8082
+      FILES_DATABASE_URL: postgres://workshop:workshop@postgres:5432/files?sslmode=disable
+      FILES_STORAGE_PATH: /storage
+      FILES_JWT_PUBLIC_KEY_PATH: /keys/jwt_dev_public.pem
+      FILES_JWT_TTL_SECONDS: 3600
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./keys:/keys:ro
+      - files-storage:/storage
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  postgres-data:
+  files-storage:
