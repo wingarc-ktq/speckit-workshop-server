@@ -1,7 +1,9 @@
-.PHONY: install run run-auth clean
+.PHONY: install run run-auth run-files clean
 
 AUTH_URL  ?= http://localhost:8081/api/v1
+FILES_URL ?= http://localhost:8082/api/v1
 REPORT_DIR := report
+FIXTURE_DIR := scenarios/files/fixtures
 
 install: ## Hurl をインストール (Mac は brew、それ以外は手順を表示)
 	@if command -v brew >/dev/null 2>&1; then \
@@ -10,7 +12,7 @@ install: ## Hurl をインストール (Mac は brew、それ以外は手順を�
 	  echo "Linux/Windows: https://hurl.dev/docs/installation.html"; \
 	fi
 
-run: run-auth ## 全シナリオ実行
+run: run-auth run-files ## 全シナリオ実行
 
 run-auth:
 	mkdir -p $(REPORT_DIR)
@@ -20,5 +22,31 @@ run-auth:
 	  --report-html $(REPORT_DIR)/auth \
 	  scenarios/auth/*.hurl
 
+run-files:
+	mkdir -p $(REPORT_DIR)
+	mkdir -p $(FIXTURE_DIR)
+	printf 'hello files\n' > $(FIXTURE_DIR)/upload.txt
+	dd if=/dev/zero of=$(FIXTURE_DIR)/too-large.bin bs=1048576 count=11 status=none
+	@run_id=$$(uuidgen | tr 'A-Z' 'a-z'); \
+	printf 'list file one\n' > $(FIXTURE_DIR)/list-$$run_id-1.txt; \
+	printf 'list file two\n' > $(FIXTURE_DIR)/list-$$run_id-2.txt; \
+	printf 'list file three\n' > $(FIXTURE_DIR)/list-$$run_id-3.txt; \
+	printf 'invoice search target\n' > $(FIXTURE_DIR)/search-$$run_id-invoice.txt; \
+	printf 'meeting notes\n' > $(FIXTURE_DIR)/search-$$run_id-meeting.txt; \
+	hurl --test \
+	  --variable auth_url=$(AUTH_URL) \
+	  --variable files_url=$(FILES_URL) \
+	  --variable run_id=$$run_id \
+	  --report-html $(REPORT_DIR)/files \
+	  scenarios/files/*.hurl; \
+	status=$$?; \
+	rm -f $(FIXTURE_DIR)/list-$$run_id-1.txt \
+	      $(FIXTURE_DIR)/list-$$run_id-2.txt \
+	      $(FIXTURE_DIR)/list-$$run_id-3.txt; \
+	rm -f $(FIXTURE_DIR)/search-$$run_id-invoice.txt \
+    	  $(FIXTURE_DIR)/search-$$run_id-meeting.txt; \
+	exit $$status
+
 clean:
 	rm -rf $(REPORT_DIR)
+	rm -rf $(FIXTURE_DIR)

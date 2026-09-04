@@ -1,4 +1,4 @@
-name: API Tests
+name: API Tests Tajima
 
 # 重い E2E（compose 起動 + ファジング）なので手動実行のみ。Actions タブ / gh CLI から起動する。
 on:
@@ -37,18 +37,33 @@ jobs:
           done
           curl -fs http://localhost:8081/readyz   # ループが空振りしたらここで step を失敗させる
 
+          # Files readiness
+          for i in {1..30}; do
+            curl -fs http://localhost:8082/healthz && break
+            sleep 2
+          done
+          curl -fs http://localhost:8082/healthz
+
       - name: Schemathesis (auth)
         run: |
           cd api-tests/schemathesis
           make install    # .venv に隔離インストール
           make run-auth    # 内部で register-user → get-token → 検証まで走る
 
-      - name: Hurl (auth)
-        run: cd api-tests/hurl && make run
+      - name: Schemathesis (files)
+        run: |
+          cd api-tests/schemathesis
+          make run-files
 
-      - name: Dump auth logs on failure
+      - name: Hurl (auth)
+        run: cd api-tests/hurl && make run-auth
+
+      - name: Hurl (files)
+        run: cd api-tests/hurl && make run-files
+
+      - name: Dump service logs on failure
         if: failure()
-        run: docker compose logs auth
+        run: docker compose logs auth files
 
       - name: Upload reports
         if: always()
