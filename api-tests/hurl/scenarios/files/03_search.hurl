@@ -47,7 +47,7 @@ HTTP 201
 meeting_file_id: jsonpath "$.file.id"
 
 # ===== 1. ファイル名の部分一致検索 =====
-GET {{files_url}}/files?q=invoice
+GET {{files_url}}/files?q=請求書
 Authorization: Bearer {{access_token}}
 
 HTTP 200
