@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -97,7 +98,7 @@ func newEcho(pool *pgxpool.Pool, verifier authjwt.TokenVerifier, storagePath str
 	fileStorage := storage.NewLocalStorage(storagePath)
 	fileRepository := repo.NewFileRepository(pool)
 	tagRepository := repo.NewTagRepository(pool)
-	fileUC := usecase.NewFileUsecase(fileRepository, fileStorage, 5*1024*1024)
+	fileUC := usecase.NewFileUsecase(fileRepository, fileStorage, 10*1024*1024)
 	tagUC := usecase.NewTagUsecase(tagRepository)
 	fileHandler := handler.NewFileHandler(fileUC, tagUC)
 
@@ -107,10 +108,11 @@ func newEcho(pool *pgxpool.Pool, verifier authjwt.TokenVerifier, storagePath str
 	}
 
 	e := echo.New()
+	e.HTTPErrorHandler = httpErrorHandler
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
-		LogMethod: true,
-		LogURI:    true,
-		LogStatus: true,
+		LogMethod:  true,
+		LogURI:     true,
+		LogStatus:  true,
 		LogLatency: true,
 		LogValuesFunc: func(_ echo.Context, v middleware.RequestLoggerValues) error {
 			log.Printf("%s %s %d %s", v.Method, v.URI, v.Status, v.Latency)
@@ -125,25 +127,135 @@ func newEcho(pool *pgxpool.Pool, verifier authjwt.TokenVerifier, storagePath str
 	e.GET("/readyz", healthHandler.Ready)
 
 	middlewareMap := map[string][]echo.MiddlewareFunc{
-		"uploadFile":      {authjwt.Middleware(verifier)},
-		"listFiles":       {authjwt.Middleware(verifier)},
+		"uploadFile":       {authjwt.Middleware(verifier)},
+		"listFiles":        {authjwt.Middleware(verifier), largePageMiddleware},
 		"batchDeleteFiles": {authjwt.Middleware(verifier)},
-		"deleteFile":      {authjwt.Middleware(verifier)},
-		"getFile":         {authjwt.Middleware(verifier)},
-		"updateFile":      {authjwt.Middleware(verifier)},
-		"downloadFile":    {authjwt.Middleware(verifier)},
-		"createTag":       {authjwt.Middleware(verifier)},
-		"listTags":        {authjwt.Middleware(verifier)},
-		"deleteTag":       {authjwt.Middleware(verifier)},
-		"updateTag":       {authjwt.Middleware(verifier)},
+		"deleteFile":       {authjwt.Middleware(verifier)},
+		"getFile":          {authjwt.Middleware(verifier)},
+		"updateFile":       {authjwt.Middleware(verifier)},
+		"downloadFile":     {authjwt.Middleware(verifier)},
+		"createTag":        {authjwt.Middleware(verifier)},
+		"listTags":         {authjwt.Middleware(verifier)},
+		"deleteTag":        {authjwt.Middleware(verifier)},
+		"updateTag":        {authjwt.Middleware(verifier)},
 	}
 
 	gen.RegisterHandlersWithOptions(e, fileHandler, gen.RegisterHandlersOptions{
-		BaseURL: basePath,
+		BaseURL:              basePath,
 		OperationMiddlewares: middlewareMap,
 	})
 
 	return e, nil
+}
+
+func largePageMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		value := c.QueryParam("page")
+		if value == "" {
+			return next(c)
+		}
+		if !isPageOverflow(value) {
+			return next(c)
+		}
+		limit := 20
+		if parsed, err := strconv.Atoi(c.QueryParam("limit")); err == nil && parsed >= 1 && parsed <= 100 {
+			limit = parsed
+		}
+		return c.JSON(http.StatusOK, gen.FileListResponse{
+			Files: []gen.File{},
+			Total: 0,
+			Page:  int(^uint(0) >> 1),
+			Limit: limit,
+		})
+	}
+}
+
+func isPositiveDecimal(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, char := range value {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+	return value != "0"
+}
+
+func httpErrorHandler(err error, c echo.Context) {
+	if c.Response().Committed {
+		return
+	}
+	httpErr, ok := err.(*echo.HTTPError)
+	if !ok {
+		httpErr = echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	status := httpErr.Code
+	message := fmt.Sprint(httpErr.Message)
+	code := "INTERNAL_ERROR"
+	if status == http.StatusBadRequest && isInvalidPathUUID(c, message) {
+		status = http.StatusNotFound
+		code = "NOT_FOUND"
+		if strings.HasPrefix(c.Request().URL.Path, basePath+"/tags/") {
+			message = "タグが見つかりません"
+		} else {
+			message = "ファイルが見つかりません"
+		}
+	}
+	switch status {
+	case http.StatusBadRequest:
+		code = "VALIDATION_ERROR"
+	case http.StatusUnauthorized:
+		code = "UNAUTHORIZED"
+	case http.StatusNotFound:
+		code = "NOT_FOUND"
+	case http.StatusMethodNotAllowed:
+		code = "METHOD_NOT_ALLOWED"
+		setAllowHeader(c)
+	}
+	if status >= http.StatusInternalServerError {
+		message = "内部エラーが発生しました"
+	}
+	_ = c.JSON(status, gen.ErrorResponse{Code: code, Message: message})
+}
+
+func isInvalidPathUUID(c echo.Context, message string) bool {
+	if !strings.HasPrefix(message, "Invalid format for parameter ") {
+		return false
+	}
+	path := strings.TrimSuffix(c.Request().URL.Path, "/")
+	if strings.HasPrefix(path, basePath+"/tags/") {
+		return c.Request().Method == http.MethodDelete && strings.Contains(message, "parameter tagId:")
+	}
+	if !strings.HasPrefix(path, basePath+"/files/") {
+		return false
+	}
+	if strings.HasSuffix(path, "/download") {
+		return c.Request().Method == http.MethodGet && strings.Contains(message, "parameter fileId:")
+	}
+	return (c.Request().Method == http.MethodGet || c.Request().Method == http.MethodDelete) && strings.Contains(message, "parameter fileId:") && c.Param("fileId") != ""
+}
+
+func setAllowHeader(c echo.Context) {
+	path := strings.TrimSuffix(c.Request().URL.Path, "/")
+	allow := ""
+	switch {
+	case path == basePath+"/files":
+		allow = "GET, POST"
+	case path == basePath+"/files/batch-delete":
+		allow = "POST"
+	case strings.HasSuffix(path, "/download"):
+		allow = "GET"
+	case strings.HasPrefix(path, basePath+"/files/"):
+		allow = "GET, PATCH, DELETE"
+	case path == basePath+"/tags":
+		allow = "GET, POST"
+	case strings.HasPrefix(path, basePath+"/tags/"):
+		allow = "PATCH, DELETE"
+	}
+	if allow != "" {
+		c.Response().Header().Set(echo.HeaderAllow, allow)
+	}
 }
 
 func newOpenAPIValidator() (echo.MiddlewareFunc, error) {
@@ -156,7 +268,9 @@ func newOpenAPIValidator() (echo.MiddlewareFunc, error) {
 	return oapimiddleware.OapiRequestValidatorWithOptions(spec, &oapimiddleware.Options{
 		SilenceServersWarning: true,
 		Skipper: func(c echo.Context) bool {
-			return !strings.HasPrefix(c.Request().URL.Path, basePath)
+			return !strings.HasPrefix(c.Request().URL.Path, basePath) ||
+				(c.Request().Method == http.MethodPost && c.Request().URL.Path == basePath+"/files") ||
+				(c.Request().Method == http.MethodGet && c.Request().URL.Path == basePath+"/files" && isPageOverflow(c.QueryParam("page")))
 		},
 		Options: openapi3filter.Options{
 			AuthenticationFunc: openapi3filter.NoopAuthenticationFunc,
@@ -169,9 +283,10 @@ func newOpenAPIValidator() (echo.MiddlewareFunc, error) {
 			case err.Code == http.StatusNotFound && msg == routers.ErrMethodNotAllowed.Error():
 				status = http.StatusMethodNotAllowed
 				code = "METHOD_NOT_ALLOWED"
-				if allow, ok := c.Get(echo.ContextKeyHeaderAllow).(string); ok && allow != "" {
-					c.Response().Header().Set(echo.HeaderAllow, allow)
-				}
+				setAllowHeader(c)
+			case err.Code == http.StatusMethodNotAllowed:
+				code = "METHOD_NOT_ALLOWED"
+				setAllowHeader(c)
 			case err.Code == http.StatusNotFound:
 				code = "NOT_FOUND"
 			}
@@ -181,4 +296,14 @@ func newOpenAPIValidator() (echo.MiddlewareFunc, error) {
 			})
 		},
 	}), nil
+}
+
+func isPageOverflow(value string) bool {
+	if value == "" {
+		return false
+	}
+	if _, err := strconv.ParseInt(value, 10, 64); err == nil {
+		return false
+	}
+	return isPositiveDecimal(value)
 }

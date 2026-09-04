@@ -40,9 +40,6 @@ func (r *FileRepository) Create(ctx context.Context, file *domain.File) (*domain
 		Description: stringPtr(file.Description),
 	})
 	if err != nil {
-		if isUniqueViolation(err) {
-			return nil, domain.ErrDuplicateFileName
-		}
 		return nil, err
 	}
 	return toDomainFile(row), nil
@@ -55,10 +52,10 @@ func (r *FileRepository) List(ctx context.Context, ownerUserID uuid.UUID, keywor
 	}
 
 	rows, err := r.q.ListFiles(ctx, db.ListFilesParams{
-		OwnerUserID: toPgUUID(ownerUserID),
-		Column2:     keyword,
-		Limit:       int32(limit),
-		Offset:      int32(offset),
+		Column1: toPgUUID(ownerUserID),
+		Column2: keyword,
+		Limit:   int32(limit),
+		Offset:  int32(offset),
 	})
 	if err != nil {
 		return nil, err
@@ -66,7 +63,9 @@ func (r *FileRepository) List(ctx context.Context, ownerUserID uuid.UUID, keywor
 
 	files := make([]domain.File, 0, len(rows))
 	for _, row := range rows {
-		files = append(files, *toDomainFile(row))
+		file := toDomainFile(row)
+		file.TagIDs = r.listTagIDs(ctx, file.ID)
+		files = append(files, *file)
 	}
 	return files, nil
 }
@@ -74,8 +73,8 @@ func (r *FileRepository) List(ctx context.Context, ownerUserID uuid.UUID, keywor
 // Count は検索条件に一致するファイル件数を返す.
 func (r *FileRepository) Count(ctx context.Context, ownerUserID uuid.UUID, keyword string) (int, error) {
 	count, err := r.q.CountFiles(ctx, db.CountFilesParams{
-		OwnerUserID: toPgUUID(ownerUserID),
-		Column2:     keyword,
+		Column1: toPgUUID(ownerUserID),
+		Column2: keyword,
 	})
 	if err != nil {
 		return 0, err
@@ -86,8 +85,8 @@ func (r *FileRepository) Count(ctx context.Context, ownerUserID uuid.UUID, keywo
 // GetByID はファイル ID でファイルを取得する.
 func (r *FileRepository) GetByID(ctx context.Context, ownerUserID, fileID uuid.UUID) (*domain.File, error) {
 	row, err := r.q.GetFileByID(ctx, db.GetFileByIDParams{
-		ID:          toPgUUID(fileID),
-		OwnerUserID: toPgUUID(ownerUserID),
+		ID:      toPgUUID(fileID),
+		Column2: toPgUUID(ownerUserID),
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -95,14 +94,16 @@ func (r *FileRepository) GetByID(ctx context.Context, ownerUserID, fileID uuid.U
 		}
 		return nil, err
 	}
-	return toDomainFile(row), nil
+	file := toDomainFile(row)
+	file.TagIDs = r.listTagIDs(ctx, file.ID)
+	return file, nil
 }
 
 // UpdateMetadata はファイルのメタデータを更新する.
 func (r *FileRepository) UpdateMetadata(ctx context.Context, ownerUserID, fileID uuid.UUID, name string, description *string, tagIDs []uuid.UUID) (*domain.File, error) {
 	row, err := r.q.UpdateFileMetadata(ctx, db.UpdateFileMetadataParams{
 		ID:          toPgUUID(fileID),
-		OwnerUserID: toPgUUID(ownerUserID),
+		Column2:     toPgUUID(ownerUserID),
 		Name:        name,
 		Description: stringPtr(description),
 	})
@@ -110,21 +111,48 @@ func (r *FileRepository) UpdateMetadata(ctx context.Context, ownerUserID, fileID
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrFileNotFound
 		}
-		if isUniqueViolation(err) {
-			return nil, domain.ErrDuplicateFileName
-		}
 		return nil, err
 	}
 	file := toDomainFile(row)
-	file.TagIDs = append([]uuid.UUID(nil), tagIDs...)
+	if err := r.replaceTagIDs(ctx, file.ID, tagIDs); err != nil {
+		return nil, err
+	}
+	file.TagIDs = r.listTagIDs(ctx, file.ID)
 	return file, nil
+}
+
+func (r *FileRepository) listTagIDs(ctx context.Context, fileID uuid.UUID) []uuid.UUID {
+	rows, err := r.q.ListFileTagIDs(ctx, toPgUUID(fileID))
+	if err != nil {
+		return nil
+	}
+	tagIDs := make([]uuid.UUID, 0, len(rows))
+	for _, id := range rows {
+		tagIDs = append(tagIDs, uuid.UUID(id.Bytes))
+	}
+	return tagIDs
+}
+
+func (r *FileRepository) replaceTagIDs(ctx context.Context, fileID uuid.UUID, tagIDs []uuid.UUID) error {
+	if err := r.q.DeleteFileTags(ctx, toPgUUID(fileID)); err != nil {
+		return err
+	}
+	for _, tagID := range tagIDs {
+		if err := r.q.AddFileTag(ctx, db.AddFileTagParams{FileID: toPgUUID(fileID), TagID: toPgUUID(tagID)}); err != nil {
+			if isForeignKeyViolation(err) {
+				continue
+			}
+			return err
+		}
+	}
+	return nil
 }
 
 // Delete は単一ファイルを削除する.
 func (r *FileRepository) Delete(ctx context.Context, ownerUserID, fileID uuid.UUID) error {
 	if err := r.q.DeleteFile(ctx, db.DeleteFileParams{
-		ID:          toPgUUID(fileID),
-		OwnerUserID: toPgUUID(ownerUserID),
+		ID:      toPgUUID(fileID),
+		Column2: toPgUUID(ownerUserID),
 	}); err != nil {
 		return err
 	}
@@ -138,8 +166,8 @@ func (r *FileRepository) DeleteByIDs(ctx context.Context, ownerUserID uuid.UUID,
 		ids = append(ids, toPgUUID(id))
 	}
 	if err := r.q.DeleteFilesByIDs(ctx, db.DeleteFilesByIDsParams{
-		OwnerUserID: toPgUUID(ownerUserID),
-		Column2:     ids,
+		Column1: toPgUUID(ownerUserID),
+		Column2: ids,
 	}); err != nil {
 		return err
 	}
@@ -149,6 +177,11 @@ func (r *FileRepository) DeleteByIDs(ctx context.Context, ownerUserID uuid.UUID,
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode
+}
+
+func isForeignKeyViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23503"
 }
 
 func toPgUUID(id uuid.UUID) pgtype.UUID {

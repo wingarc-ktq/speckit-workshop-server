@@ -64,7 +64,11 @@ func TestFileRepository_CreateAndUpdate(t *testing.T) {
 
 	newName := "report_v2.pdf"
 	newDesc := "更新後の説明"
-	updated, err := r.UpdateMetadata(ctx, ownerID, fileID, newName, &newDesc, []uuid.UUID{uuid.New()})
+	tagID := uuid.New()
+	if _, err := pool.Exec(ctx, `INSERT INTO tags (id, name, color) VALUES ($1, $2, $3)`, tagID, "重要", "red"); err != nil {
+		t.Fatal(err)
+	}
+	updated, err := r.UpdateMetadata(ctx, ownerID, fileID, newName, &newDesc, []uuid.UUID{tagID})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,6 +80,13 @@ func TestFileRepository_CreateAndUpdate(t *testing.T) {
 	}
 	if len(updated.TagIDs) != 1 {
 		t.Fatalf("tag count: got %d, want 1", len(updated.TagIDs))
+	}
+	got, err = r.GetByID(ctx, ownerID, fileID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.TagIDs) != 1 || got.TagIDs[0] != tagID {
+		t.Fatalf("stored tag IDs: got %v, want [%v]", got.TagIDs, tagID)
 	}
 }
 
@@ -98,15 +109,18 @@ func TestFileRepository_DuplicateAndDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := r.Create(ctx, &domain.File{
+	second, err := r.Create(ctx, &domain.File{
 		ID:          uuid.New(),
 		OwnerUserID: ownerID,
 		Name:        "dup.pdf",
 		Size:        256,
 		MIMEType:    "application/pdf",
 	})
-	if !errors.Is(err, domain.ErrDuplicateFileName) {
-		t.Fatalf("duplicate err: got %v, want %v", err, domain.ErrDuplicateFileName)
+	if err != nil {
+		t.Fatalf("duplicate file name should be accepted: %v", err)
+	}
+	if second.ID == file.ID {
+		t.Fatalf("duplicate file should have a distinct ID: got %v", second.ID)
 	}
 
 	if err := r.Delete(ctx, ownerID, file.ID); err != nil {
@@ -146,6 +160,8 @@ func setupFilesPostgres(t *testing.T) (*pgxpool.Pool, func()) {
 	for _, migration := range []string{
 		"../../../migrations/000001_create_files_table.up.sql",
 		"../../../migrations/000002_create_tags_table.up.sql",
+		"../../../migrations/000003_allow_duplicate_and_empty_files.up.sql",
+		"../../../migrations/000004_create_file_tags_table.up.sql",
 	} {
 		ddl, err := os.ReadFile(migration)
 		if err != nil {

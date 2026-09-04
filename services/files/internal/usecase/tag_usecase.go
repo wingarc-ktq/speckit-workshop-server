@@ -27,8 +27,8 @@ type CreateTagInput struct {
 // UpdateTagInput はタグ更新の入力.
 type UpdateTagInput struct {
 	TagID uuid.UUID
-	Name  string
-	Color string
+	Name  *string
+	Color *string
 }
 
 type tagUsecase struct {
@@ -46,7 +46,7 @@ func (u *tagUsecase) Create(ctx context.Context, in CreateTagInput) (*domain.Tag
 	if err != nil {
 		return nil, err
 	}
-	if name == "" {
+	if name == "" || strings.IndexByte(name, 0) >= 0 {
 		return nil, domain.ErrInvalidTag
 	}
 	tag := &domain.Tag{
@@ -69,13 +69,23 @@ func (u *tagUsecase) Update(ctx context.Context, in UpdateTagInput) (*domain.Tag
 	if in.TagID == uuid.Nil {
 		return nil, domain.ErrInvalidTag
 	}
-	name := strings.TrimSpace(in.Name)
-	if name == "" {
-		return nil, domain.ErrInvalidTag
-	}
-	color, err := normalizeTagColor(in.Color)
+	current, err := u.repo.GetByID(ctx, in.TagID)
 	if err != nil {
 		return nil, err
+	}
+	name := current.Name
+	if in.Name != nil {
+		name = strings.TrimSpace(*in.Name)
+		if name == "" || strings.IndexByte(name, 0) >= 0 {
+			return nil, domain.ErrInvalidTag
+		}
+	}
+	color := current.Color
+	if in.Color != nil {
+		color, err = normalizeTagColor(*in.Color)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return u.repo.Update(ctx, in.TagID, name, color)
 }

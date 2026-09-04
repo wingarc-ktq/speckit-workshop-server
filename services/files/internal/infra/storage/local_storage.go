@@ -32,7 +32,7 @@ func (s *LocalStorage) Save(ctx context.Context, content domain.FileContent) (*d
 	if strings.TrimSpace(content.OriginalName) == "" {
 		return nil, domain.ErrInvalidFile
 	}
-	if content.Size <= 0 || int64(len(content.Data)) != content.Size {
+	if content.Size < 0 || int64(len(content.Data)) != content.Size {
 		return nil, domain.ErrInvalidFile
 	}
 	if err := s.ensureDir(); err != nil {

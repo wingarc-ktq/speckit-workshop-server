@@ -60,8 +60,12 @@ func TestTagHandler_CreateListUpdateDelete(t *testing.T) {
 	tagID := uuid.New()
 	t.Run("create", func(t *testing.T) {
 		u := &fakeTagUsecase{createFn: func(_ context.Context, in usecase.CreateTagInput) (*domain.Tag, error) {
-			if in.Name != "重要" { t.Fatalf("name: got %s, want %s", in.Name, "重要") }
-			if in.Color != string(domain.TagColorRed) { t.Fatalf("color: got %s, want %s", in.Color, string(domain.TagColorRed)) }
+			if in.Name != "重要" {
+				t.Fatalf("name: got %s, want %s", in.Name, "重要")
+			}
+			if in.Color != string(domain.TagColorRed) {
+				t.Fatalf("color: got %s, want %s", in.Color, string(domain.TagColorRed))
+			}
 			return &domain.Tag{ID: tagID, Name: in.Name, Color: domain.TagColorRed, CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
 		}}
 		h := handler.NewTagHandler(u)
@@ -71,7 +75,9 @@ func TestTagHandler_CreateListUpdateDelete(t *testing.T) {
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		c := e.NewContext(req, httptest.NewRecorder())
 		c.Set("userID", uuid.New())
-		if err := h.CreateTag(c); err != nil { t.Fatal(err) }
+		if err := h.CreateTag(c); err != nil {
+			t.Fatal(err)
+		}
 	})
 
 	t.Run("list", func(t *testing.T) {
@@ -83,14 +89,20 @@ func TestTagHandler_CreateListUpdateDelete(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/tags", nil)
 		c := e.NewContext(req, httptest.NewRecorder())
 		c.Set("userID", uuid.New())
-		if err := h.ListTags(c); err != nil { t.Fatal(err) }
+		if err := h.ListTags(c); err != nil {
+			t.Fatal(err)
+		}
 	})
 
 	t.Run("update", func(t *testing.T) {
 		u := &fakeTagUsecase{updateFn: func(_ context.Context, in usecase.UpdateTagInput) (*domain.Tag, error) {
-			if in.TagID != tagID { t.Fatalf("id: got %v, want %v", in.TagID, tagID) }
-			if in.Name != "緊急" { t.Fatalf("name: got %s, want %s", in.Name, "緊急") }
-			return &domain.Tag{ID: tagID, Name: in.Name, Color: domain.TagColorOrange, CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+			if in.TagID != tagID {
+				t.Fatalf("id: got %v, want %v", in.TagID, tagID)
+			}
+			if in.Name == nil || *in.Name != "緊急" {
+				t.Fatalf("name: got %v, want %s", in.Name, "緊急")
+			}
+			return &domain.Tag{ID: tagID, Name: *in.Name, Color: domain.TagColorOrange, CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
 		}}
 		h := handler.NewTagHandler(u)
 		body := `{"name":"緊急","color":"orange"}`
@@ -99,14 +111,20 @@ func TestTagHandler_CreateListUpdateDelete(t *testing.T) {
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		c := e.NewContext(req, httptest.NewRecorder())
 		c.Set("userID", uuid.New())
-		if err := h.UpdateTag(c, openapi_types.UUID(tagID)); err != nil { t.Fatal(err) }
+		if err := h.UpdateTag(c, openapi_types.UUID(tagID)); err != nil {
+			t.Fatal(err)
+		}
 		rec := c.Response().Writer.(*httptest.ResponseRecorder)
-		if rec.Code != http.StatusOK { t.Fatalf("status: got %d, want %d", rec.Code, http.StatusOK) }
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status: got %d, want %d", rec.Code, http.StatusOK)
+		}
 	})
 
 	t.Run("delete", func(t *testing.T) {
 		u := &fakeTagUsecase{deleteFn: func(_ context.Context, gotID uuid.UUID) error {
-			if gotID != tagID { t.Fatalf("id: got %v, want %v", gotID, tagID) }
+			if gotID != tagID {
+				t.Fatalf("id: got %v, want %v", gotID, tagID)
+			}
 			return nil
 		}}
 		h := handler.NewTagHandler(u)
@@ -114,9 +132,13 @@ func TestTagHandler_CreateListUpdateDelete(t *testing.T) {
 		req := httptest.NewRequest(http.MethodDelete, "/api/v1/tags/"+tagID.String(), nil)
 		c := e.NewContext(req, httptest.NewRecorder())
 		c.Set("userID", uuid.New())
-		if err := h.DeleteTag(c, openapi_types.UUID(tagID)); err != nil { t.Fatal(err) }
+		if err := h.DeleteTag(c, openapi_types.UUID(tagID)); err != nil {
+			t.Fatal(err)
+		}
 		rec := c.Response().Writer.(*httptest.ResponseRecorder)
-		if rec.Code != http.StatusNoContent { t.Fatalf("status: got %d, want %d", rec.Code, http.StatusNoContent) }
+		if rec.Code != http.StatusNoContent {
+			t.Fatalf("status: got %d, want %d", rec.Code, http.StatusNoContent)
+		}
 	})
 }
 
@@ -132,10 +154,18 @@ func TestTagHandler_ErrorMapping(t *testing.T) {
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	c := e.NewContext(req, httptest.NewRecorder())
 	c.Set("userID", uuid.New())
-	if err := h.CreateTag(c); err != nil { t.Fatal(err) }
+	if err := h.CreateTag(c); err != nil {
+		t.Fatal(err)
+	}
 	rec := c.Response().Writer.(*httptest.ResponseRecorder)
-	if rec.Code != http.StatusConflict { t.Fatalf("status: got %d, want %d", rec.Code, http.StatusConflict) }
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status: got %d, want %d", rec.Code, http.StatusConflict)
+	}
 	var out gen.ErrorResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil { t.Fatal(err) }
-	if out.Code != "TAG_ALREADY_EXISTS" { t.Fatalf("code: got %s, want %s", out.Code, "TAG_ALREADY_EXISTS") }
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Code != "TAG_ALREADY_EXISTS" {
+		t.Fatalf("code: got %s, want %s", out.Code, "TAG_ALREADY_EXISTS")
+	}
 }

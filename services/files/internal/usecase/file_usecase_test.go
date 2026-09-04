@@ -82,11 +82,11 @@ func (f *fakeFileStorage) Save(ctx context.Context, content domain.FileContent) 
 		return f.saveFn(ctx, content)
 	}
 	return &domain.StoredFile{
-		ID:       uuid.New(),
-		Name:     content.OriginalName,
-		Path:     "/tmp/test.bin",
-		Size:     content.Size,
-		MIMEType: content.MIMEType,
+		ID:        uuid.New(),
+		Name:      content.OriginalName,
+		Path:      "/tmp/test.bin",
+		Size:      content.Size,
+		MIMEType:  content.MIMEType,
 		CreatedAt: time.Now(),
 	}, nil
 }
@@ -126,37 +126,47 @@ func TestFileUsecase_List(t *testing.T) {
 	}
 
 	tests := []struct {
-		name    string
-		input   usecase.ListInput
-		repo    func(*fakeFileRepository)
-		wantErr error
-		wantLen int
-		wantPage int
+		name      string
+		input     usecase.ListInput
+		repo      func(*fakeFileRepository)
+		wantErr   error
+		wantLen   int
+		wantPage  int
 		wantLimit int
 	}{
 		{
-			name: "success",
+			name:  "success",
 			input: usecase.ListInput{OwnerUserID: ownerID, Page: 1, Limit: 20, Keyword: "請求"},
 			repo: func(r *fakeFileRepository) {
 				r.listFn = func(_ context.Context, gotOwnerID uuid.UUID, keyword string, offset, limit int) ([]domain.File, error) {
-					if gotOwnerID != ownerID { t.Fatalf("ownerUserID: got %v, want %v", gotOwnerID, ownerID) }
-					if keyword != "請求" { t.Fatalf("keyword: got %s, want %s", keyword, "請求") }
-					if offset != 0 || limit != 20 { t.Fatalf("offset/limit: got %d/%d, want 0/20", offset, limit) }
+					if gotOwnerID != ownerID {
+						t.Fatalf("ownerUserID: got %v, want %v", gotOwnerID, ownerID)
+					}
+					if keyword != "請求" {
+						t.Fatalf("keyword: got %s, want %s", keyword, "請求")
+					}
+					if offset != 0 || limit != 20 {
+						t.Fatalf("offset/limit: got %d/%d, want 0/20", offset, limit)
+					}
 					return files, nil
 				}
 				r.countFn = func(_ context.Context, gotOwnerID uuid.UUID, keyword string) (int, error) {
-					if gotOwnerID != ownerID { t.Fatalf("ownerUserID: got %v, want %v", gotOwnerID, ownerID) }
-					if keyword != "請求" { t.Fatalf("keyword: got %s, want %s", keyword, "請求") }
+					if gotOwnerID != ownerID {
+						t.Fatalf("ownerUserID: got %v, want %v", gotOwnerID, ownerID)
+					}
+					if keyword != "請求" {
+						t.Fatalf("keyword: got %s, want %s", keyword, "請求")
+					}
 					return len(files), nil
 				}
 			},
-			wantLen: 2,
-			wantPage: 1,
+			wantLen:   2,
+			wantPage:  1,
 			wantLimit: 20,
 		},
 		{
-			name: "invalid pagination",
-			input: usecase.ListInput{OwnerUserID: ownerID, Page: 0, Limit: 20},
+			name:    "invalid pagination",
+			input:   usecase.ListInput{OwnerUserID: ownerID, Page: 0, Limit: 20},
 			wantErr: domain.ErrInvalidPagination,
 		},
 	}
@@ -165,7 +175,9 @@ func TestFileUsecase_List(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			repo := &fakeFileRepository{}
-			if tt.repo != nil { tt.repo(repo) }
+			if tt.repo != nil {
+				tt.repo(repo)
+			}
 
 			uc := usecase.NewFileUsecase(repo, nil, 5*1024*1024)
 			out, err := uc.List(context.Background(), tt.input)
@@ -176,11 +188,21 @@ func TestFileUsecase_List(t *testing.T) {
 				}
 				return
 			}
-			if err != nil { t.Fatal(err) }
-			if out == nil { t.Fatal("output is nil") }
-			if len(out.Files) != tt.wantLen { t.Fatalf("len(files): got %d, want %d", len(out.Files), tt.wantLen) }
-			if out.Page != tt.wantPage { t.Fatalf("page: got %d, want %d", out.Page, tt.wantPage) }
-			if out.Limit != tt.wantLimit { t.Fatalf("limit: got %d, want %d", out.Limit, tt.wantLimit) }
+			if err != nil {
+				t.Fatal(err)
+			}
+			if out == nil {
+				t.Fatal("output is nil")
+			}
+			if len(out.Files) != tt.wantLen {
+				t.Fatalf("len(files): got %d, want %d", len(out.Files), tt.wantLen)
+			}
+			if out.Page != tt.wantPage {
+				t.Fatalf("page: got %d, want %d", out.Page, tt.wantPage)
+			}
+			if out.Limit != tt.wantLimit {
+				t.Fatalf("limit: got %d, want %d", out.Limit, tt.wantLimit)
+			}
 		})
 	}
 }
@@ -203,28 +225,44 @@ func TestFileUsecase_GetAndDownload(t *testing.T) {
 
 	t.Run("get success", func(t *testing.T) {
 		repo := &fakeFileRepository{getByIDFn: func(_ context.Context, gotOwnerID, gotFileID uuid.UUID) (*domain.File, error) {
-			if gotOwnerID != ownerID { t.Fatalf("ownerUserID: got %v, want %v", gotOwnerID, ownerID) }
-			if gotFileID != fileID { t.Fatalf("fileID: got %v, want %v", gotFileID, fileID) }
+			if gotOwnerID != ownerID {
+				t.Fatalf("ownerUserID: got %v, want %v", gotOwnerID, ownerID)
+			}
+			if gotFileID != fileID {
+				t.Fatalf("fileID: got %v, want %v", gotFileID, fileID)
+			}
 			return file, nil
 		}}
 		storage := &fakeFileStorage{}
 		uc := usecase.NewFileUsecase(repo, storage, 5*1024*1024)
 		got, err := uc.Get(context.Background(), usecase.GetInput{OwnerUserID: ownerID, FileID: fileID})
-		if err != nil { t.Fatal(err) }
-		if got == nil || got.ID != fileID { t.Fatalf("file: got %+v, want id %v", got, fileID) }
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got == nil || got.ID != fileID {
+			t.Fatalf("file: got %+v, want id %v", got, fileID)
+		}
 	})
 
 	t.Run("download success", func(t *testing.T) {
 		repo := &fakeFileRepository{getByIDFn: func(_ context.Context, _, _ uuid.UUID) (*domain.File, error) { return file, nil }}
 		storage := &fakeFileStorage{openByFileFn: func(_ context.Context, got *domain.File) ([]byte, error) {
-			if got == nil || got.ID != fileID { t.Fatalf("file: got %+v, want id %v", got, fileID) }
+			if got == nil || got.ID != fileID {
+				t.Fatalf("file: got %+v, want id %v", got, fileID)
+			}
 			return []byte("pdf-data"), nil
 		}}
 		uc := usecase.NewFileUsecase(repo, storage, 5*1024*1024)
 		out, err := uc.Download(context.Background(), usecase.DownloadInput{OwnerUserID: ownerID, FileID: fileID})
-		if err != nil { t.Fatal(err) }
-		if out == nil || out.File == nil || out.File.ID != fileID { t.Fatalf("output: got %+v, want file id %v", out, fileID) }
-		if string(out.Data) != "pdf-data" { t.Fatalf("data: got %q, want %q", string(out.Data), "pdf-data") }
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out == nil || out.File == nil || out.File.ID != fileID {
+			t.Fatalf("output: got %+v, want file id %v", out, fileID)
+		}
+		if string(out.Data) != "pdf-data" {
+			t.Fatalf("data: got %q, want %q", string(out.Data), "pdf-data")
+		}
 	})
 
 	t.Run("file not found", func(t *testing.T) {
@@ -234,7 +272,9 @@ func TestFileUsecase_GetAndDownload(t *testing.T) {
 		storage := &fakeFileStorage{}
 		uc := usecase.NewFileUsecase(repo, storage, 5*1024*1024)
 		_, err := uc.Get(context.Background(), usecase.GetInput{OwnerUserID: ownerID, FileID: fileID})
-		if !errors.Is(err, domain.ErrFileNotFound) { t.Fatalf("err: got %v, want %v", err, domain.ErrFileNotFound) }
+		if !errors.Is(err, domain.ErrFileNotFound) {
+			t.Fatalf("err: got %v, want %v", err, domain.ErrFileNotFound)
+		}
 	})
 }
 
@@ -258,14 +298,26 @@ func TestFileUsecase_UpdateMetadata(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		repo := &fakeFileRepository{getByIDFn: func(_ context.Context, gotOwnerID, gotFileID uuid.UUID) (*domain.File, error) {
-			if gotOwnerID != ownerID { t.Fatalf("ownerUserID: got %v, want %v", gotOwnerID, ownerID) }
-			if gotFileID != fileID { t.Fatalf("fileID: got %v, want %v", gotFileID, fileID) }
+			if gotOwnerID != ownerID {
+				t.Fatalf("ownerUserID: got %v, want %v", gotOwnerID, ownerID)
+			}
+			if gotFileID != fileID {
+				t.Fatalf("fileID: got %v, want %v", gotFileID, fileID)
+			}
 			return current, nil
 		}, updateFn: func(_ context.Context, gotOwnerID, gotFileID uuid.UUID, name string, description *string) (*domain.File, error) {
-			if gotOwnerID != ownerID { t.Fatalf("ownerUserID: got %v, want %v", gotOwnerID, ownerID) }
-			if gotFileID != fileID { t.Fatalf("fileID: got %v, want %v", gotFileID, fileID) }
-			if name != newName { t.Fatalf("name: got %s, want %s", name, newName) }
-			if description == nil || *description != newDescription { t.Fatalf("description: got %v, want %s", description, newDescription) }
+			if gotOwnerID != ownerID {
+				t.Fatalf("ownerUserID: got %v, want %v", gotOwnerID, ownerID)
+			}
+			if gotFileID != fileID {
+				t.Fatalf("fileID: got %v, want %v", gotFileID, fileID)
+			}
+			if name != newName {
+				t.Fatalf("name: got %s, want %s", name, newName)
+			}
+			if description == nil || *description != newDescription {
+				t.Fatalf("description: got %v, want %s", description, newDescription)
+			}
 			return &domain.File{ID: fileID, OwnerUserID: ownerID, Name: newName, MIMEType: "application/pdf", Description: &newDescription, TagIDs: newTagIDs, UploadedAt: time.Now()}, nil
 		}}
 		storage := &fakeFileStorage{}
@@ -277,10 +329,18 @@ func TestFileUsecase_UpdateMetadata(t *testing.T) {
 			Description: &newDescription,
 			TagIDs:      newTagIDs,
 		})
-		if err != nil { t.Fatal(err) }
-		if got == nil || got.Name != newName { t.Fatalf("returned name: got %q, want %q", got.Name, newName) }
-		if got.Description == nil || *got.Description != newDescription { t.Fatalf("returned description: got %v, want %q", got.Description, newDescription) }
-		if len(got.TagIDs) != len(newTagIDs) { t.Fatalf("tag count: got %d, want %d", len(got.TagIDs), len(newTagIDs)) }
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got == nil || got.Name != newName {
+			t.Fatalf("returned name: got %q, want %q", got.Name, newName)
+		}
+		if got.Description == nil || *got.Description != newDescription {
+			t.Fatalf("returned description: got %v, want %q", got.Description, newDescription)
+		}
+		if len(got.TagIDs) != len(newTagIDs) {
+			t.Fatalf("tag count: got %d, want %d", len(got.TagIDs), len(newTagIDs))
+		}
 	})
 
 	t.Run("file not found", func(t *testing.T) {
@@ -294,7 +354,9 @@ func TestFileUsecase_UpdateMetadata(t *testing.T) {
 			FileID:      fileID,
 			Name:        &newName,
 		})
-		if !errors.Is(err, domain.ErrFileNotFound) { t.Fatalf("err: got %v, want %v", err, domain.ErrFileNotFound) }
+		if !errors.Is(err, domain.ErrFileNotFound) {
+			t.Fatalf("err: got %v, want %v", err, domain.ErrFileNotFound)
+		}
 	})
 }
 
@@ -312,16 +374,22 @@ func TestFileUsecase_Delete(t *testing.T) {
 	t.Run("single delete success", func(t *testing.T) {
 		repo := &fakeFileRepository{
 			getByIDFn: func(_ context.Context, gotOwnerID, gotFileID uuid.UUID) (*domain.File, error) {
-				if gotOwnerID != ownerID || gotFileID != fileID { t.Fatalf("unexpected lookup: owner=%v file=%v", gotOwnerID, gotFileID) }
+				if gotOwnerID != ownerID || gotFileID != fileID {
+					t.Fatalf("unexpected lookup: owner=%v file=%v", gotOwnerID, gotFileID)
+				}
 				return file, nil
 			},
 			deleteFn: func(_ context.Context, gotOwnerID, gotFileID uuid.UUID) error {
-				if gotOwnerID != ownerID || gotFileID != fileID { t.Fatalf("unexpected delete: owner=%v file=%v", gotOwnerID, gotFileID) }
+				if gotOwnerID != ownerID || gotFileID != fileID {
+					t.Fatalf("unexpected delete: owner=%v file=%v", gotOwnerID, gotFileID)
+				}
 				return nil
 			},
 		}
 		storage := &fakeFileStorage{deleteByFile: func(_ context.Context, got *domain.File) error {
-			if got == nil || got.ID != fileID { t.Fatalf("storage file: got %+v, want id %v", got, fileID) }
+			if got == nil || got.ID != fileID {
+				t.Fatalf("storage file: got %+v, want id %v", got, fileID)
+			}
 			return nil
 		}}
 		uc := usecase.NewFileUsecase(repo, storage, 5*1024*1024)
@@ -334,12 +402,18 @@ func TestFileUsecase_Delete(t *testing.T) {
 		ids := []uuid.UUID{uuid.New(), uuid.New()}
 		repo := &fakeFileRepository{
 			getByIDFn: func(_ context.Context, gotOwnerID, gotFileID uuid.UUID) (*domain.File, error) {
-				if gotOwnerID != ownerID { t.Fatalf("ownerUserID: got %v, want %v", gotOwnerID, ownerID) }
+				if gotOwnerID != ownerID {
+					t.Fatalf("ownerUserID: got %v, want %v", gotOwnerID, ownerID)
+				}
 				return &domain.File{ID: gotFileID, OwnerUserID: ownerID, Name: "report.pdf", MIMEType: "application/pdf"}, nil
 			},
 			deleteByIDs: func(_ context.Context, gotOwnerID uuid.UUID, gotIDs []uuid.UUID) error {
-				if gotOwnerID != ownerID { t.Fatalf("ownerUserID: got %v, want %v", gotOwnerID, ownerID) }
-				if len(gotIDs) != len(ids) { t.Fatalf("len(ids): got %d, want %d", len(gotIDs), len(ids)) }
+				if gotOwnerID != ownerID {
+					t.Fatalf("ownerUserID: got %v, want %v", gotOwnerID, ownerID)
+				}
+				if len(gotIDs) != len(ids) {
+					t.Fatalf("len(ids): got %d, want %d", len(gotIDs), len(ids))
+				}
 				return nil
 			},
 		}
@@ -370,15 +444,15 @@ func TestFileUsecase_Upload(t *testing.T) {
 	description := "2026年度の事業計画書"
 
 	tests := []struct {
-		name        string
-		input       usecase.UploadInput
-		repo        func(*fakeFileRepository)
-		storage     func(*fakeFileStorage)
-		wantErr     error
-		wantPath    string
-		wantDesc    *string
-		wantSize    int64
-		wantMime    string
+		name     string
+		input    usecase.UploadInput
+		repo     func(*fakeFileRepository)
+		storage  func(*fakeFileStorage)
+		wantErr  error
+		wantPath string
+		wantDesc *string
+		wantSize int64
+		wantMime string
 	}{
 		{
 			name: "upload success",
@@ -451,8 +525,12 @@ func TestFileUsecase_Upload(t *testing.T) {
 			t.Parallel()
 			repo := &fakeFileRepository{}
 			storage := &fakeFileStorage{}
-			if tt.repo != nil { tt.repo(repo) }
-			if tt.storage != nil { tt.storage(storage) }
+			if tt.repo != nil {
+				tt.repo(repo)
+			}
+			if tt.storage != nil {
+				tt.storage(storage)
+			}
 
 			uc := usecase.NewFileUsecase(repo, storage, maxBytes)
 			out, err := uc.Upload(context.Background(), tt.input)
@@ -496,7 +574,7 @@ func TestFileUsecase_AdditionalInvalidBranches(t *testing.T) {
 	const maxBytes int64 = 5 * 1024 * 1024
 
 	t.Run("upload invalid owner and empty content", func(t *testing.T) {
-		repo := &fakeFileRepository{}
+		repo := &fakeFileRepository{createFn: func(_ context.Context, file *domain.File) (*domain.File, error) { return file, nil }}
 		storage := &fakeFileStorage{}
 		uc := usecase.NewFileUsecase(repo, storage, maxBytes)
 
@@ -506,8 +584,8 @@ func TestFileUsecase_AdditionalInvalidBranches(t *testing.T) {
 		if _, err := uc.Upload(context.Background(), usecase.UploadInput{OwnerUserID: ownerID, FileName: "", Data: []byte("x")}); !errors.Is(err, domain.ErrInvalidFile) {
 			t.Fatalf("empty name: got %v, want %v", err, domain.ErrInvalidFile)
 		}
-		if _, err := uc.Upload(context.Background(), usecase.UploadInput{OwnerUserID: ownerID, FileName: "a.pdf", Data: nil}); !errors.Is(err, domain.ErrInvalidFile) {
-			t.Fatalf("empty data: got %v, want %v", err, domain.ErrInvalidFile)
+		if out, err := uc.Upload(context.Background(), usecase.UploadInput{OwnerUserID: ownerID, FileName: "a.pdf", Data: nil}); err != nil || out == nil || out.File.Size != 0 {
+			t.Fatalf("empty data: got output=%+v err=%v, want accepted zero-byte file", out, err)
 		}
 	})
 
@@ -518,17 +596,28 @@ func TestFileUsecase_AdditionalInvalidBranches(t *testing.T) {
 		storage := &fakeFileStorage{
 			saveFn: func(context.Context, domain.FileContent) (*domain.StoredFile, error) { return stored, nil },
 			deleteFn: func(_ context.Context, got *domain.StoredFile) error {
-				if got == nil || got.ID != stored.ID { t.Fatalf("cleanup stored file: got %+v, want id %v", got, stored.ID) }
+				if got == nil || got.ID != stored.ID {
+					t.Fatalf("cleanup stored file: got %+v, want id %v", got, stored.ID)
+				}
 				return nil
 			},
 		}
 		uc := usecase.NewFileUsecase(repo, storage, maxBytes)
 		_, err := uc.Upload(context.Background(), usecase.UploadInput{OwnerUserID: ownerID, FileName: "a.pdf", MIMEType: "application/pdf", Data: []byte("abc")})
-		if !errors.Is(err, repoErr) { t.Fatalf("err: got %v, want %v", err, repoErr) }
+		if !errors.Is(err, repoErr) {
+			t.Fatalf("err: got %v, want %v", err, repoErr)
+		}
 	})
 
 	t.Run("list get download update delete invalid branches", func(t *testing.T) {
-		repo := &fakeFileRepository{}
+		repo := &fakeFileRepository{
+			getByIDFn: func(_ context.Context, _, gotFileID uuid.UUID) (*domain.File, error) {
+				return &domain.File{ID: gotFileID, Name: "existing.pdf"}, nil
+			},
+			updateFn: func(_ context.Context, _, gotFileID uuid.UUID, name string, description *string) (*domain.File, error) {
+				return &domain.File{ID: gotFileID, Name: name, Description: description}, nil
+			},
+		}
 		storage := &fakeFileStorage{}
 		uc := usecase.NewFileUsecase(repo, storage, maxBytes)
 
@@ -556,8 +645,8 @@ func TestFileUsecase_AdditionalInvalidBranches(t *testing.T) {
 		if _, err := uc.UpdateMetadata(context.Background(), usecase.UpdateMetadataInput{OwnerUserID: ownerID, FileID: uuid.Nil}); !errors.Is(err, domain.ErrInvalidFile) {
 			t.Fatalf("update nil file: got %v, want %v", err, domain.ErrInvalidFile)
 		}
-		if _, err := uc.UpdateMetadata(context.Background(), usecase.UpdateMetadataInput{OwnerUserID: ownerID, FileID: fileID}); !errors.Is(err, domain.ErrInvalidFile) {
-			t.Fatalf("update all nil: got %v, want %v", err, domain.ErrInvalidFile)
+		if got, err := uc.UpdateMetadata(context.Background(), usecase.UpdateMetadataInput{OwnerUserID: ownerID, FileID: fileID}); err != nil || got == nil || got.Name != "existing.pdf" {
+			t.Fatalf("update all nil: got %+v err=%v, want unchanged file", got, err)
 		}
 		if err := uc.Delete(context.Background(), usecase.DeleteInput{OwnerUserID: uuid.Nil, FileID: fileID}); !errors.Is(err, domain.ErrInvalidFile) {
 			t.Fatalf("delete nil owner: got %v, want %v", err, domain.ErrInvalidFile)

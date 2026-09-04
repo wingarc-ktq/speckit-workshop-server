@@ -77,23 +77,23 @@ func (h *TagHandler) UpdateTag(ctx echo.Context, tagId openapi_types.UUID) error
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&req); err != nil {
 		return validationError(ctx, "JSON が不正です")
 	}
-	name := ""
-	if req.Name != nil {
-		name = strings.TrimSpace(*req.Name)
-	}
-	color := ""
-	if req.Color != nil {
-		color = string(*req.Color)
-	}
 	updated, err := h.uc.Update(ctx.Request().Context(), usecase.UpdateTagInput{
 		TagID: uuid.UUID(tagId),
-		Name:  name,
-		Color: color,
+		Name:  req.Name,
+		Color: updateTagColorPtr(req.Color),
 	})
 	if err != nil {
 		return h.errorResponse(ctx, err)
 	}
 	return ctx.JSON(http.StatusOK, gen.TagResponse{Tag: toGenTag(*updated)})
+}
+
+func updateTagColorPtr(color *gen.UpdateTagRequestColor) *string {
+	if color == nil {
+		return nil
+	}
+	v := string(*color)
+	return &v
 }
 
 func (h *TagHandler) errorResponse(ctx echo.Context, err error) error {
@@ -118,4 +118,3 @@ func toGenTag(tag domain.Tag) gen.Tag {
 		UpdatedAt: tag.UpdatedAt,
 	}
 }
-

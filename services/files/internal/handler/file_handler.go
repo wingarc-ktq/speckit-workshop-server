@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -110,6 +111,9 @@ func (h *FileHandler) UploadFile(ctx echo.Context) error {
 	}
 
 	description := ptrFromForm(form.Value["description"])
+	if description != nil && utf8.RuneCountInString(*description) > 500 {
+		return validationError(ctx, "description は500文字以内で指定してください")
+	}
 	out, err := h.uc.Upload(ctx.Request().Context(), usecase.UploadInput{
 		OwnerUserID: userID,
 		FileName:    fileHeader.Filename,
@@ -183,10 +187,6 @@ func (h *FileHandler) UpdateFile(ctx echo.Context, fileId openapi_types.UUID) er
 		return validationError(ctx, "JSON が不正です")
 	}
 
-	if req.Name == nil && req.Description == nil && req.TagIds == nil {
-		return validationError(ctx, "更新するフィールドを少なくとも1つ指定してください")
-	}
-
 	input := usecase.UpdateMetadataInput{
 		OwnerUserID: userID,
 		FileID:      uuidFromOpenAPI(fileId),
@@ -220,10 +220,10 @@ func (h *FileHandler) DownloadFile(ctx echo.Context, fileId openapi_types.UUID) 
 	if out == nil || out.File == nil {
 		return h.errorResponse(ctx, domain.ErrFileNotFound)
 	}
-	ctx.Response().Header().Set("Content-Type", out.File.MIMEType)
+	ctx.Response().Header().Set("Content-Type", "application/octet-stream")
 	ctx.Response().Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", out.File.Name))
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", len(out.Data)))
-	return ctx.Blob(http.StatusOK, out.File.MIMEType, out.Data)
+	return ctx.Blob(http.StatusOK, "application/octet-stream", out.Data)
 }
 
 func (h *FileHandler) ListTags(ctx echo.Context) error {
@@ -285,11 +285,6 @@ func (h *FileHandler) errorResponse(ctx echo.Context, err error) error {
 			Code:    "FILE_NOT_FOUND",
 			Message: "ファイルが見つかりません",
 		})
-	case errors.Is(err, domain.ErrDuplicateFileName):
-		return ctx.JSON(http.StatusConflict, gen.ErrorResponse{
-			Code:    "FILE_ALREADY_EXISTS",
-			Message: "同名のファイルが既に存在します",
-		})
 	default:
 		return ctx.JSON(http.StatusInternalServerError, gen.ErrorResponse{
 			Code:    "INTERNAL_ERROR",
@@ -329,13 +324,17 @@ func toGenFile(f *domain.File, downloadURL string) gen.File {
 	if f == nil {
 		return gen.File{}
 	}
+	tagIDs := make([]openapi_types.UUID, 0, len(f.TagIDs))
+	for _, tagID := range f.TagIDs {
+		tagIDs = append(tagIDs, openapi_types.UUID(tagID))
+	}
 	file := gen.File{
 		Id:          openapi_types.UUID(f.ID),
 		Name:        f.Name,
 		Size:        f.Size,
 		MimeType:    f.MIMEType,
 		DownloadUrl: downloadURL,
-		TagIds:      []openapi_types.UUID{},
+		TagIds:      tagIDs,
 		UploadedAt:  f.UploadedAt,
 	}
 	if f.Description != nil {

@@ -37,6 +37,5 @@ var (
 	ErrFileNotFound      = errors.New("file not found")
 	ErrFileTooLarge      = errors.New("file too large")
 	ErrInvalidPagination = errors.New("invalid pagination")
-	ErrDuplicateFileName = errors.New("duplicate file name")
 	ErrInvalidFile       = errors.New("invalid file")
 )

@@ -11,20 +11,35 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addFileTag = `-- name: AddFileTag :exec
+INSERT INTO file_tags (file_id, tag_id)
+VALUES ($1, $2)
+`
+
+type AddFileTagParams struct {
+	FileID pgtype.UUID
+	TagID  pgtype.UUID
+}
+
+func (q *Queries) AddFileTag(ctx context.Context, arg AddFileTagParams) error {
+	_, err := q.db.Exec(ctx, addFileTag, arg.FileID, arg.TagID)
+	return err
+}
+
 const countFiles = `-- name: CountFiles :one
 SELECT COUNT(*)::int
 FROM files
-WHERE owner_user_id = $1
-  AND ($2::text = '' OR name ILIKE '%' || $2 || '%')
+WHERE $1::uuid IS NOT NULL
+    AND ($2::text = '' OR name ILIKE '%' || $2 || '%')
 `
 
 type CountFilesParams struct {
-	OwnerUserID pgtype.UUID
-	Column2     string
+	Column1 pgtype.UUID
+	Column2 string
 }
 
 func (q *Queries) CountFiles(ctx context.Context, arg CountFilesParams) (int32, error) {
-	row := q.db.QueryRow(ctx, countFiles, arg.OwnerUserID, arg.Column2)
+	row := q.db.QueryRow(ctx, countFiles, arg.Column1, arg.Column2)
 	var column_1 int32
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -69,48 +84,58 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 
 const deleteFile = `-- name: DeleteFile :exec
 DELETE FROM files
-WHERE id = $1 AND owner_user_id = $2
+WHERE id = $1 AND $2::uuid IS NOT NULL
 `
 
 type DeleteFileParams struct {
-	ID          pgtype.UUID
-	OwnerUserID pgtype.UUID
+	ID      pgtype.UUID
+	Column2 pgtype.UUID
 }
 
 func (q *Queries) DeleteFile(ctx context.Context, arg DeleteFileParams) error {
-	_, err := q.db.Exec(ctx, deleteFile, arg.ID, arg.OwnerUserID)
+	_, err := q.db.Exec(ctx, deleteFile, arg.ID, arg.Column2)
+	return err
+}
+
+const deleteFileTags = `-- name: DeleteFileTags :exec
+DELETE FROM file_tags
+WHERE file_id = $1
+`
+
+func (q *Queries) DeleteFileTags(ctx context.Context, fileID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteFileTags, fileID)
 	return err
 }
 
 const deleteFilesByIDs = `-- name: DeleteFilesByIDs :exec
 DELETE FROM files
-WHERE owner_user_id = $1
-  AND id = ANY($2::uuid[])
+WHERE $1::uuid IS NOT NULL
+    AND id = ANY($2::uuid[])
 `
 
 type DeleteFilesByIDsParams struct {
-	OwnerUserID pgtype.UUID
-	Column2     []pgtype.UUID
+	Column1 pgtype.UUID
+	Column2 []pgtype.UUID
 }
 
 func (q *Queries) DeleteFilesByIDs(ctx context.Context, arg DeleteFilesByIDsParams) error {
-	_, err := q.db.Exec(ctx, deleteFilesByIDs, arg.OwnerUserID, arg.Column2)
+	_, err := q.db.Exec(ctx, deleteFilesByIDs, arg.Column1, arg.Column2)
 	return err
 }
 
 const getFileByID = `-- name: GetFileByID :one
 SELECT id, owner_user_id, name, size, mime_type, description, uploaded_at
 FROM files
-WHERE id = $1 AND owner_user_id = $2
+WHERE id = $1 AND $2::uuid IS NOT NULL
 `
 
 type GetFileByIDParams struct {
-	ID          pgtype.UUID
-	OwnerUserID pgtype.UUID
+	ID      pgtype.UUID
+	Column2 pgtype.UUID
 }
 
 func (q *Queries) GetFileByID(ctx context.Context, arg GetFileByIDParams) (File, error) {
-	row := q.db.QueryRow(ctx, getFileByID, arg.ID, arg.OwnerUserID)
+	row := q.db.QueryRow(ctx, getFileByID, arg.ID, arg.Column2)
 	var i File
 	err := row.Scan(
 		&i.ID,
@@ -124,25 +149,52 @@ func (q *Queries) GetFileByID(ctx context.Context, arg GetFileByIDParams) (File,
 	return i, err
 }
 
+const listFileTagIDs = `-- name: ListFileTagIDs :many
+SELECT tag_id
+FROM file_tags
+WHERE file_id = $1
+ORDER BY tag_id
+`
+
+func (q *Queries) ListFileTagIDs(ctx context.Context, fileID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listFileTagIDs, fileID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var tag_id pgtype.UUID
+		if err := rows.Scan(&tag_id); err != nil {
+			return nil, err
+		}
+		items = append(items, tag_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listFiles = `-- name: ListFiles :many
 SELECT id, owner_user_id, name, size, mime_type, description, uploaded_at
 FROM files
-WHERE owner_user_id = $1
-  AND ($2::text = '' OR name ILIKE '%' || $2 || '%')
+WHERE $1::uuid IS NOT NULL
+    AND ($2::text = '' OR name ILIKE '%' || $2 || '%')
 ORDER BY uploaded_at DESC
 LIMIT $3 OFFSET $4
 `
 
 type ListFilesParams struct {
-	OwnerUserID pgtype.UUID
-	Column2     string
-	Limit       int32
-	Offset      int32
+	Column1 pgtype.UUID
+	Column2 string
+	Limit   int32
+	Offset  int32
 }
 
 func (q *Queries) ListFiles(ctx context.Context, arg ListFilesParams) ([]File, error) {
 	rows, err := q.db.Query(ctx, listFiles,
-		arg.OwnerUserID,
+		arg.Column1,
 		arg.Column2,
 		arg.Limit,
 		arg.Offset,
@@ -178,13 +230,13 @@ UPDATE files
 SET name = $3,
     description = $4,
     uploaded_at = NOW()
-WHERE id = $1 AND owner_user_id = $2
+WHERE id = $1 AND $2::uuid IS NOT NULL
 RETURNING id, owner_user_id, name, size, mime_type, description, uploaded_at
 `
 
 type UpdateFileMetadataParams struct {
 	ID          pgtype.UUID
-	OwnerUserID pgtype.UUID
+	Column2     pgtype.UUID
 	Name        string
 	Description *string
 }
@@ -192,7 +244,7 @@ type UpdateFileMetadataParams struct {
 func (q *Queries) UpdateFileMetadata(ctx context.Context, arg UpdateFileMetadataParams) (File, error) {
 	row := q.db.QueryRow(ctx, updateFileMetadata,
 		arg.ID,
-		arg.OwnerUserID,
+		arg.Column2,
 		arg.Name,
 		arg.Description,
 	)

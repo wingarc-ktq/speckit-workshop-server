@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -95,7 +96,7 @@ type DeleteFilesInput struct {
 }
 
 type fileUsecase struct {
-	repo   domain.FileRepository
+	repo    domain.FileRepository
 	storage domain.FileStorage
 	maxSize int64
 }
@@ -113,13 +114,12 @@ func (u *fileUsecase) Upload(ctx context.Context, in UploadInput) (*UploadOutput
 	if strings.TrimSpace(in.FileName) == "" {
 		return nil, domain.ErrInvalidFile
 	}
+	if strings.IndexByte(in.FileName, 0) >= 0 || (in.Description != nil && strings.IndexByte(*in.Description, 0) >= 0) {
+		return nil, domain.ErrInvalidFile
+	}
 	if int64(len(in.Data)) > u.maxSize {
 		return nil, domain.ErrFileTooLarge
 	}
-	if len(in.Data) == 0 {
-		return nil, domain.ErrInvalidFile
-	}
-
 	stored, err := u.storage.Save(ctx, domain.FileContent{
 		OriginalName: in.FileName,
 		MIMEType:     in.MIMEType,
@@ -163,7 +163,24 @@ func (u *fileUsecase) List(ctx context.Context, in ListInput) (*ListOutput, erro
 		return nil, domain.ErrInvalidPagination
 	}
 
+	if strings.IndexByte(in.Keyword, 0) >= 0 {
+		return nil, domain.ErrInvalidFile
+	}
+	if in.Page-1 > math.MaxInt/in.Limit {
+		count, err := u.repo.Count(ctx, in.OwnerUserID, in.Keyword)
+		if err != nil {
+			return nil, err
+		}
+		return &ListOutput{Files: []domain.File{}, Total: count, Page: in.Page, Limit: in.Limit}, nil
+	}
 	offset := (in.Page - 1) * in.Limit
+	if offset > math.MaxInt32 {
+		count, err := u.repo.Count(ctx, in.OwnerUserID, in.Keyword)
+		if err != nil {
+			return nil, err
+		}
+		return &ListOutput{Files: []domain.File{}, Total: count, Page: in.Page, Limit: in.Limit}, nil
+	}
 	files, err := u.repo.List(ctx, in.OwnerUserID, in.Keyword, offset, in.Limit)
 	if err != nil {
 		return nil, err
@@ -214,10 +231,6 @@ func (u *fileUsecase) UpdateMetadata(ctx context.Context, in UpdateMetadataInput
 	if in.OwnerUserID == uuid.Nil || in.FileID == uuid.Nil {
 		return nil, domain.ErrInvalidFile
 	}
-	if in.Name == nil && in.Description == nil && in.TagIDs == nil {
-		return nil, domain.ErrInvalidFile
-	}
-
 	current, err := u.repo.GetByID(ctx, in.OwnerUserID, in.FileID)
 	if err != nil {
 		return nil, err
@@ -226,13 +239,16 @@ func (u *fileUsecase) UpdateMetadata(ctx context.Context, in UpdateMetadataInput
 	name := current.Name
 	if in.Name != nil {
 		name = strings.TrimSpace(*in.Name)
-		if name == "" {
+		if name == "" || strings.IndexByte(name, 0) >= 0 {
 			return nil, domain.ErrInvalidFile
 		}
 	}
 
 	description := current.Description
 	if in.Description != nil {
+		if strings.IndexByte(*in.Description, 0) >= 0 {
+			return nil, domain.ErrInvalidFile
+		}
 		trimmed := strings.TrimSpace(*in.Description)
 		if trimmed == "" {
 			description = nil
@@ -287,6 +303,9 @@ func (u *fileUsecase) DeleteFiles(ctx context.Context, in DeleteFilesInput) erro
 		}
 		file, err := u.repo.GetByID(ctx, in.OwnerUserID, fileID)
 		if err != nil {
+			if errors.Is(err, domain.ErrFileNotFound) {
+				continue
+			}
 			return err
 		}
 		if u.storage != nil {

@@ -18,6 +18,11 @@ type File struct {
 	UploadedAt  pgtype.Timestamptz
 }
 
+type FileTag struct {
+	FileID pgtype.UUID
+	TagID  pgtype.UUID
+}
+
 type Tag struct {
 	ID        pgtype.UUID
 	Name      string
