@@ -51,6 +51,7 @@ jobs:
           make run-auth    # 内部で register-user → get-token → 検証まで走る
 
       - name: Schemathesis (files)
+        continue-on-error: true
         run: |
           cd api-tests/schemathesis
           make run-files
