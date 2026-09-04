@@ -33,6 +33,8 @@ run-files:
 	printf 'progress report\n' > "$(FIXTURE_DIR)/list-$$run_id-報告書.txt"; \
 	printf 'invoice\n' > "$(FIXTURE_DIR)/search-$$run_id-請求書.txt"; \
 	printf 'meeting minutes\n' > "$(FIXTURE_DIR)/search-$$run_id-議事録.txt"; \
+	printf '開発定例の議事録\n' > "$(FIXTURE_DIR)/download-$$run_id-議事録.txt"; \
+	printf '開発定例のメモ\n' > "$(FIXTURE_DIR)/update-$$run_id-会議メモ.txt"; \
 	hurl --test \
 	  --variable auth_url=$(AUTH_URL) \
 	  --variable files_url=$(FILES_URL) \
@@ -45,7 +47,9 @@ run-files:
 	  "$(FIXTURE_DIR)/list-$$run_id-議事録.txt" \
 	  "$(FIXTURE_DIR)/list-$$run_id-報告書.txt" \
 	  "$(FIXTURE_DIR)/search-$$run_id-請求書.txt" \
-	  "$(FIXTURE_DIR)/search-$$run_id-議事録.txt"; \
+	  "$(FIXTURE_DIR)/search-$$run_id-議事録.txt" \
+	  "$(FIXTURE_DIR)/download-$$run_id-議事録.txt" \
+	  "$(FIXTURE_DIR)/update-$$run_id-会議メモ.txt"; \
 	exit $$status
 
 clean:
