@@ -1,0 +1,325 @@
+openapi: 3.0.3
+info:
+  title: Files Service API
+  version: 1.0.0
+  description: |
+    文書管理サービスのファイル管理 API.
+    P1 の MVP ではアップロード、一覧・検索、詳細取得、ダウンロードを扱う。
+
+servers:
+  - url: http://localhost:8082/api/v1
+    description: Development server
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: files
+    description: ファイル管理
+
+paths:
+  /files:
+    get:
+      summary: ファイル一覧取得
+      operationId: getFiles
+      tags:
+        - files
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: 1 始まりのページ番号
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: 1 ページあたりの件数
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: name
+          in: query
+          description: ファイル名の部分一致検索
+          required: false
+          schema:
+            type: string
+        - name: tagIds
+          in: query
+          description: すべて含むタグ ID の配列
+          required: false
+          allowEmptyValue: true
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+            style: form
+            explode: true
+      responses:
+        "200":
+          description: 一覧取得成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileListResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      summary: ファイルアップロード
+      operationId: uploadFile
+      tags:
+        - files
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                description:
+                  type: string
+                  maxLength: 500
+                  pattern: "^[^\\x00-\\x1F\\x7F]*$"
+                tagIds:
+                  type: string
+                  description: 付与するタグ ID。複数指定時は同じフィールドを繰り返す
+                  pattern: "^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            encoding:
+              file:
+                contentType: application/octet-stream
+              description:
+                contentType: text/plain
+              tagIds:
+                contentType: text/plain
+      responses:
+        "201":
+          description: アップロード成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileInfo"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "409":
+          $ref: "#/components/responses/TagNotFoundError"
+        "413":
+          $ref: "#/components/responses/FileTooLargeError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /files/{fileId}:
+    get:
+      summary: ファイル詳細取得
+      operationId: getFileById
+      tags:
+        - files
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          description: ファイル ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: 詳細取得成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileInfo"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/FileNotFoundError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /files/{fileId}/download:
+    get:
+      summary: ファイルダウンロード
+      operationId: downloadFileById
+      tags:
+        - files
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          description: ファイル ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: ファイル本体のバイナリ
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            text/plain:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/FileNotFoundError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    FileInfo:
+      type: object
+      required:
+        - id
+        - name
+        - size
+        - mimeType
+        - uploadedAt
+        - downloadUrl
+        - tagIds
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: 元ファイル名
+        size:
+          type: integer
+          format: int64
+          minimum: 0
+        mimeType:
+          type: string
+        description:
+          type: string
+          maxLength: 500
+          pattern: "^[^\\x00-\\x1F\\x7F]*$"
+          nullable: true
+        uploadedAt:
+          type: string
+          format: date-time
+        downloadUrl:
+          type: string
+          format: uri-reference
+        tagIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    FileListResponse:
+      type: object
+      required:
+        - files
+        - total
+        - page
+        - limit
+      properties:
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/FileInfo"
+        total:
+          type: integer
+          minimum: 0
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: invalid request parameters
+
+  responses:
+    ValidationError:
+      description: バリデーションエラー
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    UnauthorizedError:
+      description: 認証エラー
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    FileNotFoundError:
+      description: ファイルが存在しない
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    TagNotFoundError:
+      description: 指定されたタグが存在しない
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    FileTooLargeError:
+      description: ファイルサイズが上限を超過した
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    InternalError:
+      description: 予期しない内部エラー
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"

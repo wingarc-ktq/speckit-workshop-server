@@ -1,0 +1,3 @@
+DROP INDEX IF EXISTS idx_tags_name;
+DROP TABLE IF EXISTS tags;
+DROP TYPE IF EXISTS tag_color;

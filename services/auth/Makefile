@@ -2,6 +2,10 @@
 
 SCHEMA_DIR := ../../schema/auth
 DATABASE_URL ?= postgres://workshop:workshop@localhost:5432/auth?sslmode=disable
+AUTH_SERVICE_PORT ?= 8081
+AUTH_JWT_PRIVATE_KEY_PATH ?= ../../keys/jwt_dev_private.pem
+AUTH_JWT_PUBLIC_KEY_PATH ?= ../../keys/jwt_dev_public.pem
+AUTH_JWT_TTL_SECONDS ?= 3600
 
 # ===== Tools =====
 tools: ## コード生成・マイグレーションに必要な CLI ツールを導入
@@ -29,6 +33,11 @@ build:
 	go build -o bin/auth ./cmd/server
 
 run:
+	AUTH_SERVICE_PORT="$(AUTH_SERVICE_PORT)" \
+	AUTH_DATABASE_URL="$(DATABASE_URL)" \
+	AUTH_JWT_PRIVATE_KEY_PATH="$(AUTH_JWT_PRIVATE_KEY_PATH)" \
+	AUTH_JWT_PUBLIC_KEY_PATH="$(AUTH_JWT_PUBLIC_KEY_PATH)" \
+	AUTH_JWT_TTL_SECONDS="$(AUTH_JWT_TTL_SECONDS)" \
 	go run ./cmd/server
 
 # ===== Tests =====

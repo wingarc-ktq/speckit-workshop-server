@@ -1,7 +1,9 @@
-.PHONY: install run run-auth register-user get-token report clean
+.PHONY: install run run-auth run-files register-user get-token report clean
 
 AUTH_URL  ?= http://localhost:8081/api/v1
 AUTH_SCHEMA  := ../../schema/auth/openapi.yaml
+FILES_URL ?= http://localhost:8082/api/v1
+FILES_SCHEMA := ../../schema/files/openapi.yaml
 REPORT_DIR := report
 
 # JWT 取得に使う固定テストユーザー (register-user で Auth に登録し get-token でログインする)
@@ -40,6 +42,18 @@ run-auth: $(ST) ## Auth サービスを Schemathesis で検証 (可能ならロ�
 	  "$$@" \
 	  --report junit --report-dir $(REPORT_DIR)/auth \
 	  $(AUTH_SCHEMA)
+
+run-files: $(ST) ## Files サービスを Schemathesis で検証（要 JWT）
+	mkdir -p $(REPORT_DIR)
+	@# AUTH_TOKEN 未設定なら get-token を実行（get-token は register-user 依存なので登録も走る）
+	@TOKEN="$${AUTH_TOKEN:-$$($(MAKE) -s get-token)}"; \
+	$(ST) run \
+	  --url $(FILES_URL) \
+	  --checks all \
+	  --max-examples 30 \
+	  --header "Authorization: Bearer $$TOKEN" \
+	  --report junit --report-dir $(REPORT_DIR)/files \
+	  $(FILES_SCHEMA)
 
 register-user: ## テストユーザーを Auth に登録 (既に存在すれば 409 を無視・冪等)
 	@curl -s -o /dev/null -X POST $(AUTH_URL)/auth/register \

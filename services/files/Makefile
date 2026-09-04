@@ -2,6 +2,10 @@
 
 SCHEMA_DIR := ../../schema/files
 DATABASE_URL ?= postgres://workshop:workshop@localhost:5432/files?sslmode=disable
+FILES_SERVICE_PORT ?= 8082
+FILES_STORAGE_ROOT ?= /tmp/files-storage
+FILES_JWT_PUBLIC_KEY_PATH ?= ../../keys/jwt_dev_public.pem
+FILES_MAX_UPLOAD_BYTES ?= 10485760
 
 # ===== Code Generation =====
 gen: gen-oapi gen-sqlc gen-mocks ## OpenAPI + SQL + mock を生成
@@ -25,6 +29,11 @@ build:
 	go build -o bin/files ./cmd/server
 
 run:
+	FILES_SERVICE_PORT="$(FILES_SERVICE_PORT)" \
+	FILES_DATABASE_URL="$(DATABASE_URL)" \
+	FILES_STORAGE_ROOT="$(FILES_STORAGE_ROOT)" \
+	FILES_JWT_PUBLIC_KEY_PATH="$(FILES_JWT_PUBLIC_KEY_PATH)" \
+	FILES_MAX_UPLOAD_BYTES="$(FILES_MAX_UPLOAD_BYTES)" \
 	go run ./cmd/server
 
 # ===== Tests =====
