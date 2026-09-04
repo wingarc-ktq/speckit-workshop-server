@@ -28,8 +28,8 @@ access_token: jsonpath "$.accessToken"
 POST {{files_url}}/files
 Authorization: Bearer {{access_token}}
 [Multipart]
-file: file,fixtures/search-{{run_id}}-invoice.txt; text/plain
-description: search target invoice
+file: file,fixtures/search-{{run_id}}-請求書.txt; text/plain
+description: 2026年9月 請求書
 
 HTTP 201
 [Captures]
@@ -39,8 +39,8 @@ invoice_file_id: jsonpath "$.file.id"
 POST {{files_url}}/files
 Authorization: Bearer {{access_token}}
 [Multipart]
-file: file,fixtures/search-{{run_id}}-meeting.txt; text/plain
-description: search target meeting
+file: file,fixtures/search-{{run_id}}-議事録.txt; text/plain
+description: 開発定例 議事録
 
 HTTP 201
 [Captures]
@@ -55,17 +55,17 @@ HTTP 200
 jsonpath "$.files" count >= 1
 
 # ===== 2. run_id を含めて今回のファイルだけ検索 =====
-GET {{files_url}}/files?q={{run_id}}-invoice
+GET {{files_url}}/files?q={{run_id}}-請求書
 Authorization: Bearer {{access_token}}
 
 HTTP 200
 [Asserts]
 jsonpath "$.files" count == 1
 jsonpath "$.total" == 1
-jsonpath "$.files[0].name" == "search-{{run_id}}-invoice.txt"
+jsonpath "$.files[0].name" == "search-{{run_id}}-請求書.txt"
 
 # ===== 3. 検索結果が0件 =====
-GET {{files_url}}/files?q=no-match-{{run_id}}
+GET {{files_url}}/files?q=存在しない文書-{{run_id}}
 Authorization: Bearer {{access_token}}
 
 HTTP 200

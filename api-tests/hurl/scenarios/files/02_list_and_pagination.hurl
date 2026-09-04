@@ -28,8 +28,8 @@ access_token: jsonpath "$.accessToken"
 POST {{files_url}}/files
 Authorization: Bearer {{access_token}}
 [Multipart]
-file: file,fixtures/list-{{run_id}}-1.txt; text/plain
-description: pagination file 1
+file: file,fixtures/list-{{run_id}}-企画書.txt; text/plain
+description: プロジェクトA 企画書
 
 HTTP 201
 [Captures]
@@ -39,8 +39,8 @@ file_id_1: jsonpath "$.file.id"
 POST {{files_url}}/files
 Authorization: Bearer {{access_token}}
 [Multipart]
-file: file,fixtures/list-{{run_id}}-2.txt; text/plain
-description: pagination file 2
+file: file,fixtures/list-{{run_id}}-議事録.txt; text/plain
+description: プロジェクトA 議事録
 
 HTTP 201
 [Captures]
@@ -50,8 +50,8 @@ file_id_2: jsonpath "$.file.id"
 POST {{files_url}}/files
 Authorization: Bearer {{access_token}}
 [Multipart]
-file: file,fixtures/list-{{run_id}}-3.txt; text/plain
-description: pagination file 3
+file: file,fixtures/list-{{run_id}}-報告書.txt; text/plain
+description: プロジェクトA 報告書
 
 HTTP 201
 [Captures]

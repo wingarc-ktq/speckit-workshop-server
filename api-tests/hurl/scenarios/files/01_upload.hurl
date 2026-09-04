@@ -30,15 +30,15 @@ jsonpath "$.accessToken" matches "^eyJ"
 POST {{files_url}}/files
 Authorization: Bearer {{access_token}}
 [Multipart]
-file: file,fixtures/upload.txt; text/plain
-description: Hurl upload scenario
+file: file,fixtures/月次報告書.txt; text/plain
+description: 2026年9月 月次報告書
 
 HTTP 201
 [Captures]
 file_id: jsonpath "$.file.id"
 [Asserts]
 jsonpath "$.file.id" exists
-jsonpath "$.file.name" == "upload.txt"
+jsonpath "$.file.name" == "月次報告書.txt"
 jsonpath "$.file.size" > 0
 jsonpath "$.file.mimeType" exists
 jsonpath "$.file.downloadUrl" exists
@@ -49,7 +49,7 @@ POST {{files_url}}/files
 Authorization: Bearer {{access_token}}
 [Multipart]
 file: file,fixtures/too-large.bin; application/octet-stream
-description: too large file
+description: 10MBを超えるファイル
 
 HTTP 413
 [Asserts]
@@ -58,8 +58,8 @@ jsonpath "$.code" == "FILE_TOO_LARGE"
 # ===== 3. JWT 未指定では 401 =====
 POST {{files_url}}/files
 [Multipart]
-file: file,fixtures/upload.txt; text/plain
-description: unauthorized upload
+file: file,fixtures/月次報告書.txt; text/plain
+description: 未認証でのアップロード
 
 HTTP 401
 
